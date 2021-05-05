@@ -12,8 +12,8 @@
 //License for the specific language governing permissions and limitations
 // under the License.
 package handle
+
 import (
-	"encoding/json"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 
@@ -25,7 +25,7 @@ import (
 
 // TelemetryRPCs used to define the service RPC function
 type TelemetryRPCs struct {
-	GetTelemetryServiceRPC               func(telemetryproto.TelemetryRequest) (*telemetryproto.TelemetryResponse, error)
+	GetTelemetryServiceRPC func(telemetryproto.TelemetryRequest) (*telemetryproto.TelemetryResponse, error)
 }
 
 // GetTelemetryService is the handler for getting TelemetryService details
