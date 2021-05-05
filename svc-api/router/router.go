@@ -22,6 +22,7 @@ import (
 	"github.com/ODIM-Project/ODIM/svc-api/middleware"
 	"github.com/ODIM-Project/ODIM/svc-api/rpc"
 
+	"github.com/kataras/iris"
 	"github.com/kataras/iris/v12"
 )
 
@@ -469,5 +470,18 @@ func Router() *iris.Application {
 	updateService.Get("/FirmwareInventory/{firmwareInventory_id}", update.GetFirmwareInventory)
 	updateService.Get("/SoftwareInventory", update.GetSoftwareInventoryCollection)
 	updateService.Get("/SoftwareInventory/{softwareInventory_id}", update.GetSoftwareInventory)
+
+	telemetryService := v1.Party("/TelemetryService", middleware.SessionDelMiddleware)
+	telemetryService.SetRegisterRule(iris.RouteSkip)
+	telemetryService.Get("/", telemetry.GetTelemetryService)
+	telemetryService.Get("/MetricDefinitions", telemetry.GetMetricDefinitionCollection)
+	telemetryService.Get("/MetricReportDefinitions", telemetry.GetMetricReportDefinitionCollection)
+	telemetryService.Get("/MetricReports", telemetry.GetMetricReportCollection)
+	telemetryService.Get("/Triggers", telemetry.GetTriggerCollection)
+	telemetryService.Get("/MetricDefinitions/{id}", telemetry.GetMetricDefinition)
+	telemetryService.Get("/MetricReportDefinitions/{id}", telemetry.GetMetricReportDefinition)
+	telemetryService.Get("/MetricReports/{id}", telemetry.GetMetricReport)
+	telemetryService.Get("/Triggers/{id}", telemetry.GetTrigger)
+	telemetryService.Patch("/Triggers/{id}", telemetry.UpdateTrigger)
 	return router
 }
