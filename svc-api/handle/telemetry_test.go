@@ -18,32 +18,32 @@ import (
 	"net/http"
 	"testing"
 
-	updateproto "github.com/ODIM-Project/ODIM/lib-utilities/proto/update"
+	teleproto "github.com/ODIM-Project/ODIM/lib-utilities/proto/telemetry"
 	iris "github.com/kataras/iris/v12"
 	"github.com/kataras/iris/v12/httptest"
 )
 
-func testGetTelemetryService(req updateproto.UpdateRequest) (*updateproto.UpdateResponse, error) {
-	var response = &updateproto.UpdateResponse{}
+func testGetTelemetryService(req teleproto.TelemetryRequest) (*teleproto.TelemetryResponse, error) {
+	var response = &teleproto.TelemetryResponse{}
 	if req.SessionToken == "ValidToken" {
-		response = &updateproto.UpdateResponse{
+		response = &teleproto.TelemetryResponse{
 			StatusCode:    200,
 			StatusMessage: "Success",
 			Body:          []byte(`{"Response":"Success"}`),
 		}
 	} else if req.SessionToken == "InvalidToken" {
-		response = &updateproto.UpdateResponse{
+		response = &teleproto.TelemetryResponse{
 			StatusCode:    401,
 			StatusMessage: "Unauthorized", Body: []byte(`{"Response":"Unauthorized"}`),
 		}
 	} else if req.SessionToken == "token" {
-		return &updateproto.UpdateResponse{}, errors.New("Unable to RPC Call")
+		return &teleproto.TelemetryResponse{}, errors.New("Unable to RPC Call")
 	}
 	return response, nil
 }
 
 func TestGetTelemetryService(t *testing.T) {
-	var a UpdateRPCs
+	var a TelemetryRPCs
 	a.GetTelemetryServiceRPC = testGetTelemetryService
 	testApp := iris.New()
 	redfishRoutes := testApp.Party("/redfish/v1/TelemetryService")
