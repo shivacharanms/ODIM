@@ -133,10 +133,6 @@ func Router() *iris.Application {
 		GetSoftwareInventoryCollectionRPC: rpc.DoGetSoftwareInventoryCollection,
 	}
 
-	telemetry := handle.TelemetryRPCs{
-		GetTelemetryServiceRPC: rpc.DoGetTelemetryService,
-	}
-
 	registryFile := handle.Registry{
 		Auth: srv.IsAuthorized,
 	}
@@ -474,8 +470,5 @@ func Router() *iris.Application {
 	updateService.Get("/SoftwareInventory", update.GetSoftwareInventoryCollection)
 	updateService.Get("/SoftwareInventory/{softwareInventory_id}", update.GetSoftwareInventory)
 
-	telemetryService := v1.Party("/TelemetryService", middleware.SessionDelMiddleware)
-	telemetryService.SetRegisterRule(iris.RouteSkip)
-	telemetryService.Get("/", telemetry.GetTelemetryService)
 	return router
 }
