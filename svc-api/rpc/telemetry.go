@@ -25,11 +25,11 @@ import (
 
 // DoGetTelemetryService defines the RPC call function for
 // the GetTelemetryService from telemetry micro service
-func DoGetTelemetryService(req teleproto.telemetryRequest) (*teleproto.telemetryResponse, error) {
+func DoGetTelemetryService(req teleproto.TelemetryRequest) (*teleproto.TelemetryResponse, error) {
 
 	telemetry := teleproto.NewTelemetryService(services.Telemetry, services.Service.Client())
 
-	resp, err := telemetry.GettelemetryService(context.TODO(), &req)
+	resp, err := telemetry.GetTelemetryService(context.TODO(), &req)
 	if err != nil {
 		return nil, fmt.Errorf("error: RPC error: %v", err)
 	}
