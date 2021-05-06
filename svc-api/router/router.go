@@ -133,6 +133,10 @@ func Router() *iris.Application {
 		GetSoftwareInventoryCollectionRPC: rpc.DoGetSoftwareInventoryCollection,
 	}
 
+	telemetry := handle.telemetryRPCs{
+		GetTelemetryServiceRPC:				rpc.DoGetTelemetryService,
+	}
+
 	registryFile := handle.Registry{
 		Auth: srv.IsAuthorized,
 	}
@@ -470,5 +474,17 @@ func Router() *iris.Application {
 	updateService.Get("/SoftwareInventory", update.GetSoftwareInventoryCollection)
 	updateService.Get("/SoftwareInventory/{softwareInventory_id}", update.GetSoftwareInventory)
 
+	telemetryService := v1.Party("/TelemetryService", middleware.SessionDelMiddleware)
+	telemetryService.SetRegisterRule(iris.RouteSkip)
+	telemetryService.Get("/", telemetry.GetTelemetryService)
+	telemetryService.Get("/MetricDefinitions", telemetry.GetMetricDefinitionCollection)
+	telemetryService.Get("/MetricReportDefinitions", telemetry.GetMetricReportDefinitionCollection)
+	telemetryService.Get("/MetricReports", telemetry.GetMetricReportCollection)
+	telemetryService.Get("/Triggers", telemetry.GetTriggerCollection)
+	telemetryService.Get("/MetricDefinitions/{id}", telemetry.GetMetricDefinition)
+	telemetryService.Get("/MetricReportDefinitions/{id}", telemetry.GetMetricReportDefinition)
+	telemetryService.Get("/MetricReports/{id}", telemetry.GetMetricReport)
+	telemetryService.Get("/Triggers/{id}", telemetry.GetTrigger)
+	telemetryService.Patch("/Triggers/{id}", telemetry.UpdateTrigger)
 	return router
 }
