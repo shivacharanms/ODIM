@@ -135,6 +135,15 @@ func Router() *iris.Application {
 
 	telemetry := handle.TelemetryRPCs{
 		GetTelemetryServiceRPC: rpc.DoGetTelemetryService,
+		GetMetricDefinitionCollectionRPC: rpc.DoGetMetricDefinitionCollection,
+		GetMetricReportDefinitionCollectionRPC: rpc.DoGetMetricReportDefinitionCollection,
+		GetMetricReportCollectionRPC: rpc.DoGetMetricReportCollection,
+		GetTriggerCollectionRPC: rpc.DoGetTriggerCollection,
+		GetMetricDefinitionRPC: rpc.DoGetMetricDefinition,
+		GetMetricReportDefinitionRPC: rpc.DoGetMetricReportDefinition,
+		GetMetricReportRPC: rpc.DoGetMetricReport,
+		GetTriggerRPC: rpc.DoGetTrigger,
+		UpdateTriggerRPC: rpc.DoUpdateTrigger,
 	}
 
 	registryFile := handle.Registry{
@@ -477,5 +486,15 @@ func Router() *iris.Application {
 	telemetryService := v1.Party("/TelemetryService", middleware.SessionDelMiddleware)
 	telemetryService.SetRegisterRule(iris.RouteSkip)
 	telemetryService.Get("/", telemetry.GetTelemetryService)
+	telemetryService.Get("/MetricDefinitions", telemetry.GetMetricDefinitionCollection)
+	telemetryService.Get("/MetricReportDefinitions", telemetry.GetMetricReportDefinitionCollection)
+	telemetryService.Get("/MetricReports", telemetry.GetMetricReportCollection)
+	telemetryService.Get("/Triggers", telemetry.GetTriggerCollection)
+	telemetryService.Get("/MetricDefinitions/{id}", telemetry.GetMetricDefinition)
+	telemetryService.Get("/MetricReportDefinitions/{id}", telemetry.GetMetricReportDefinition)
+	telemetryService.Get("/MetricReports/{id}", telemetry.GetMetricReport)
+	telemetryService.Get("/Triggers/{id}", telemetry.GetTrigger)
+	telemetryService.Patch("/Triggers/{id}", telemetry.UpdateTrigger)
+
 	return router
 }

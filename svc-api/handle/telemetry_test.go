@@ -23,7 +23,7 @@ import (
 	"github.com/kataras/iris/v12/httptest"
 )
 
-func testGetTelemetryService(req teleproto.TelemetryRequest) (*teleproto.TelemetryResponse, error) {
+func testTelemetryService(req teleproto.TelemetryRequest) (*teleproto.TelemetryResponse, error) {
 	var response = &teleproto.TelemetryResponse{}
 	if req.SessionToken == "ValidToken" {
 		response = &teleproto.TelemetryResponse{
@@ -44,18 +44,180 @@ func testGetTelemetryService(req teleproto.TelemetryRequest) (*teleproto.Telemet
 
 func TestGetTelemetryService(t *testing.T) {
 	var a TelemetryRPCs
-	a.GetTelemetryServiceRPC = testGetTelemetryService
+	a.GetTelemetryServiceRPC = testTelemetryService
 	testApp := iris.New()
 	redfishRoutes := testApp.Party("/redfish/v1/TelemetryService")
 	redfishRoutes.Get("/", a.GetTelemetryService)
 	test := httptest.New(t, testApp)
 	test.GET(
-		"/redfish/v1/TelemetryService",
+			"/redfish/v1/TelemetryService",
 	).WithHeader("X-Auth-Token", "ValidToken").Expect().Status(http.StatusOK)
 	test.GET(
-		"/redfish/v1/TelemetryService",
+			"/redfish/v1/TelemetryService",
 	).WithHeader("X-Auth-Token", "").Expect().Status(http.StatusUnauthorized)
 	test.GET(
-		"/redfish/v1/TelemetryService",
+			"/redfish/v1/TelemetryService",
+	).WithHeader("X-Auth-Token", "token").Expect().Status(http.StatusInternalServerError)
+}
+
+func TestGetMetricDefinitionCollection(t *testing.T) {
+	var a TelemetryRPCs
+	a.GetMetricDefinitionCollectionRPC = testTelemetryService
+	testApp := iris.New()
+	redfishRoutes := testApp.Party("/redfish/v1/TelemetryService")
+	redfishRoutes.Get("/MetricDefinitions", a.GetMetricDefinitionCollection)
+	test := httptest.New(t, testApp)
+	test.GET(
+		"/redfish/v1/TelemetryService/MetricDefinitions",
+	).WithHeader("X-Auth-Token", "ValidToken").Expect().Status(http.StatusOK)
+	test.GET(
+		"/redfish/v1/TelemetryService/MetricDefinitions",
+	).WithHeader("X-Auth-Token", "").Expect().Status(http.StatusUnauthorized)
+	test.GET(
+		"/redfish/v1/TelemetryService/MetricDefinitions",
+	).WithHeader("X-Auth-Token", "token").Expect().Status(http.StatusInternalServerError)
+}
+
+func TestGetMetricReportDefinitionCollection(t *testing.T) {
+	var a TelemetryRPCs
+	a.GetMetricReportDefinitionCollectionRPC = testTelemetryService
+	testApp := iris.New()
+	redfishRoutes := testApp.Party("/redfish/v1/TelemetryService")
+	redfishRoutes.Get("/MetricReportDefinitions", a.GetMetricReportDefinitionCollection)
+	test := httptest.New(t, testApp)
+	test.GET(
+		"/redfish/v1/TelemetryService/MetricReportDefinitions",
+	).WithHeader("X-Auth-Token", "ValidToken").Expect().Status(http.StatusOK)
+	test.GET(
+		"/redfish/v1/TelemetryService/MetricReportDefinitions",
+	).WithHeader("X-Auth-Token", "").Expect().Status(http.StatusUnauthorized)
+	test.GET(
+		"/redfish/v1/TelemetryService/MetricReportDefinitions",
+	).WithHeader("X-Auth-Token", "token").Expect().Status(http.StatusInternalServerError)
+}
+
+func TestGetMetricReportCollection(t *testing.T) {
+	var a TelemetryRPCs
+	a.GetMetricReportCollectionRPC = testTelemetryService
+	testApp := iris.New()
+	redfishRoutes := testApp.Party("/redfish/v1/TelemetryService")
+	redfishRoutes.Get("/MetricReports", a.GetMetricReportCollection)
+	test := httptest.New(t, testApp)
+	test.GET(
+		"/redfish/v1/TelemetryService/MetricReports",
+	).WithHeader("X-Auth-Token", "ValidToken").Expect().Status(http.StatusOK)
+	test.GET(
+		"/redfish/v1/TelemetryService/MetricReports",
+	).WithHeader("X-Auth-Token", "").Expect().Status(http.StatusUnauthorized)
+	test.GET(
+		"/redfish/v1/TelemetryService/MetricReports",
+	).WithHeader("X-Auth-Token", "token").Expect().Status(http.StatusInternalServerError)
+}
+
+func TestGetTriggerCollection(t *testing.T) {
+	var a TelemetryRPCs
+	a.GetTriggerCollectionRPC = testTelemetryService
+	testApp := iris.New()
+	redfishRoutes := testApp.Party("/redfish/v1/TelemetryService")
+	redfishRoutes.Get("/Triggers", a.GetTriggerCollection)
+	test := httptest.New(t, testApp)
+	test.GET(
+		"/redfish/v1/TelemetryService/Triggers",
+	).WithHeader("X-Auth-Token", "ValidToken").Expect().Status(http.StatusOK)
+	test.GET(
+		"/redfish/v1/TelemetryService/Triggers",
+	).WithHeader("X-Auth-Token", "").Expect().Status(http.StatusUnauthorized)
+	test.GET(
+		"/redfish/v1/TelemetryService/Triggers",
+	).WithHeader("X-Auth-Token", "token").Expect().Status(http.StatusInternalServerError)
+}
+
+func TestGetMetricDefinition(t *testing.T) {
+	var a TelemetryRPCs
+	a.GetMetricDefinitionRPC = testTelemetryService
+	testApp := iris.New()
+	redfishRoutes := testApp.Party("/redfish/v1/TelemetryService")
+	redfishRoutes.Get("/MetricDefinitions/{id}", a.GetMetricDefinition)
+	test := httptest.New(t, testApp)
+	test.GET(
+		"/redfish/v1/TelemetryService/MetricDefinitions/1",
+	).WithHeader("X-Auth-Token", "ValidToken").Expect().Status(http.StatusOK)
+	test.GET(
+		"/redfish/v1/TelemetryService/MetricDefinitions/1",
+	).WithHeader("X-Auth-Token", "").Expect().Status(http.StatusUnauthorized)
+	test.GET(
+		"/redfish/v1/TelemetryService/MetricDefinitions/1",
+	).WithHeader("X-Auth-Token", "token").Expect().Status(http.StatusInternalServerError)
+}
+
+func TestGetMetricReportDefinition(t *testing.T) {
+	var a TelemetryRPCs
+	a.GetMetricReportDefinitionRPC = testTelemetryService
+	testApp := iris.New()
+	redfishRoutes := testApp.Party("/redfish/v1/TelemetryService")
+	redfishRoutes.Get("/MetricReportDefinitions/{id}", a.GetMetricReportDefinition)
+	test := httptest.New(t, testApp)
+	test.GET(
+		"/redfish/v1/TelemetryService/MetricReportDefinitions/1",
+	).WithHeader("X-Auth-Token", "ValidToken").Expect().Status(http.StatusOK)
+	test.GET(
+		"/redfish/v1/TelemetryService/MetricReportDefinitions/1",
+	).WithHeader("X-Auth-Token", "").Expect().Status(http.StatusUnauthorized)
+	test.GET(
+		"/redfish/v1/TelemetryService/MetricReportDefinitions/1",
+	).WithHeader("X-Auth-Token", "token").Expect().Status(http.StatusInternalServerError)
+}
+
+func TestGetMetricReport(t *testing.T) {
+	var a TelemetryRPCs
+	a.GetMetricReportRPC = testTelemetryService
+	testApp := iris.New()
+	redfishRoutes := testApp.Party("/redfish/v1/TelemetryService")
+	redfishRoutes.Get("/MetricReports/{id}", a.GetMetricReportRPC)
+	test := httptest.New(t, testApp)
+	test.GET(
+		"/redfish/v1/TelemetryService/MetricReports/1",
+	).WithHeader("X-Auth-Token", "ValidToken").Expect().Status(http.StatusOK)
+	test.GET(
+		"/redfish/v1/TelemetryService/MetricReports/1",
+	).WithHeader("X-Auth-Token", "").Expect().Status(http.StatusUnauthorized)
+	test.GET(
+		"/redfish/v1/TelemetryService/MetricReports/1",
+	).WithHeader("X-Auth-Token", "token").Expect().Status(http.StatusInternalServerError)
+}
+
+func TestGetTrigger(t *testing.T) {
+	var a TelemetryRPCs
+	a.GetTriggerRPC = testTelemetryService
+	testApp := iris.New()
+	redfishRoutes := testApp.Party("/redfish/v1/TelemetryService")
+	redfishRoutes.Get("/Triggers/{id}", a.GetTrigger)
+	test := httptest.New(t, testApp)
+	test.GET(
+		"/redfish/v1/TelemetryService/Triggers/1",
+	).WithHeader("X-Auth-Token", "ValidToken").Expect().Status(http.StatusOK)
+	test.GET(
+		"/redfish/v1/TelemetryService/Triggers/1",
+	).WithHeader("X-Auth-Token", "").Expect().Status(http.StatusUnauthorized)
+	test.GET(
+		"/redfish/v1/TelemetryService/Triggers/1",
+	).WithHeader("X-Auth-Token", "token").Expect().Status(http.StatusInternalServerError)
+}
+
+func TestUpdateTrigger(t *testing.T) {
+	var a TelemetryRPCs
+	a.UpdateTriggerRPC = testTelemetryService
+	testApp := iris.New()
+	redfishRoutes := testApp.Party("/redfish/v1/TelemetryService")
+	redfishRoutes.Patch("/Triggers/{id}", a.UpdateTrigger)
+	test := httptest.New(t, testApp)
+	test.PATCH(
+		"/redfish/v1/TelemetryService/Triggers/1",
+	).WithHeader("X-Auth-Token", "ValidToken").Expect().Status(http.StatusOK)
+	test.PATCH(
+		"/redfish/v1/TelemetryService/Triggers/1",
+	).WithHeader("X-Auth-Token", "").Expect().Status(http.StatusUnauthorized)
+	test.PATCH(
+		"/redfish/v1/TelemetryService/Triggers/1",
 	).WithHeader("X-Auth-Token", "token").Expect().Status(http.StatusInternalServerError)
 }
