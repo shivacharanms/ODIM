@@ -27,16 +27,16 @@ import (
 
 // TelemetryRPCs used to define the service RPC function
 type TelemetryRPCs struct {
-	GetTelemetryServiceRPC func(telemetryproto.TelemetryRequest) (*telemetryproto.TelemetryResponse, error)
-	GetMetricDefinitionCollectionRPC func(telemetryproto.TelemetryRequest) (*telemetryproto.TelemetryResponse, error)
+	GetTelemetryServiceRPC                 func(telemetryproto.TelemetryRequest) (*telemetryproto.TelemetryResponse, error)
+	GetMetricDefinitionCollectionRPC       func(telemetryproto.TelemetryRequest) (*telemetryproto.TelemetryResponse, error)
 	GetMetricReportDefinitionCollectionRPC func(telemetryproto.TelemetryRequest) (*telemetryproto.TelemetryResponse, error)
-	GetMetricReportCollectionRPC func(telemetryproto.TelemetryRequest) (*telemetryproto.TelemetryResponse, error)
-	GetTriggerCollectionRPC func(telemetryproto.TelemetryRequest) (*telemetryproto.TelemetryResponse, error)
-	GetMetricDefinitionRPC func(telemetryproto.TelemetryRequest) (*telemetryproto.TelemetryResponse, error)
-	GetMetricReportDefinitionRPC func(telemetryproto.TelemetryRequest) (*telemetryproto.TelemetryResponse, error)
-	GetMetricReportRPC func(telemetryproto.TelemetryRequest) (*telemetryproto.TelemetryResponse, error)
-	GetTriggerRPC func(telemetryproto.TelemetryRequest) (*telemetryproto.TelemetryResponse, error)
-	UpdateTriggerRPC func(telemetryproto.TelemetryRequest) (*telemetryproto.TelemetryResponse, error)
+	GetMetricReportCollectionRPC           func(telemetryproto.TelemetryRequest) (*telemetryproto.TelemetryResponse, error)
+	GetTriggerCollectionRPC                func(telemetryproto.TelemetryRequest) (*telemetryproto.TelemetryResponse, error)
+	GetMetricDefinitionRPC                 func(telemetryproto.TelemetryRequest) (*telemetryproto.TelemetryResponse, error)
+	GetMetricReportDefinitionRPC           func(telemetryproto.TelemetryRequest) (*telemetryproto.TelemetryResponse, error)
+	GetMetricReportRPC                     func(telemetryproto.TelemetryRequest) (*telemetryproto.TelemetryResponse, error)
+	GetTriggerRPC                          func(telemetryproto.TelemetryRequest) (*telemetryproto.TelemetryResponse, error)
+	UpdateTriggerRPC                       func(telemetryproto.TelemetryRequest) (*telemetryproto.TelemetryResponse, error)
 }
 
 // GetTelemetryService is the handler for getting TelemetryService details

@@ -50,13 +50,13 @@ func TestGetTelemetryService(t *testing.T) {
 	redfishRoutes.Get("/", a.GetTelemetryService)
 	test := httptest.New(t, testApp)
 	test.GET(
-			"/redfish/v1/TelemetryService",
+		"/redfish/v1/TelemetryService",
 	).WithHeader("X-Auth-Token", "ValidToken").Expect().Status(http.StatusOK)
 	test.GET(
-			"/redfish/v1/TelemetryService",
+		"/redfish/v1/TelemetryService",
 	).WithHeader("X-Auth-Token", "").Expect().Status(http.StatusUnauthorized)
 	test.GET(
-			"/redfish/v1/TelemetryService",
+		"/redfish/v1/TelemetryService",
 	).WithHeader("X-Auth-Token", "token").Expect().Status(http.StatusInternalServerError)
 }
 
@@ -173,7 +173,7 @@ func TestGetMetricReport(t *testing.T) {
 	a.GetMetricReportRPC = testTelemetryService
 	testApp := iris.New()
 	redfishRoutes := testApp.Party("/redfish/v1/TelemetryService")
-	redfishRoutes.Get("/MetricReports/{id}", a.GetMetricReportRPC)
+	redfishRoutes.Get("/MetricReports/{id}", a.GetMetricReport)
 	test := httptest.New(t, testApp)
 	test.GET(
 		"/redfish/v1/TelemetryService/MetricReports/1",

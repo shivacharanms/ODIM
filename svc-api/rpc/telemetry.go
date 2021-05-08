@@ -38,12 +38,12 @@ func DoGetTelemetryService(req teleproto.TelemetryRequest) (*teleproto.Telemetry
 }
 
 // DoGetMetricDefinitionCollection defines the RPC call function for
-// the GetMetricDefinitionCollectionRPC from telemetry micro service
+// the GetMetricDefinitionCollection from telemetry micro service
 func DoGetMetricDefinitionCollection(req teleproto.TelemetryRequest) (*teleproto.TelemetryResponse, error) {
 
 	telemetry := teleproto.NewTelemetryService(services.Telemetry, services.Service.Client())
 
-	resp, err := telemetry.GetMetricDefinitionCollectionRPC(context.TODO(), &req)
+	resp, err := telemetry.GetMetricDefinitionCollection(context.TODO(), &req)
 	if err != nil {
 		return nil, fmt.Errorf("error: RPC error: %v", err)
 	}
@@ -52,12 +52,12 @@ func DoGetMetricDefinitionCollection(req teleproto.TelemetryRequest) (*teleproto
 }
 
 // DoGetMetricReportDefinitionCollection defines the RPC call function for
-// the GetMetricReportDefinitionCollectionRPC from telemetry micro service
+// the GetMetricReportDefinitionCollection from telemetry micro service
 func DoGetMetricReportDefinitionCollection(req teleproto.TelemetryRequest) (*teleproto.TelemetryResponse, error) {
 
 	telemetry := teleproto.NewTelemetryService(services.Telemetry, services.Service.Client())
 
-	resp, err := telemetry.GetMetricReportDefinitionCollectionRPC(context.TODO(), &req)
+	resp, err := telemetry.GetMetricReportDefinitionCollection(context.TODO(), &req)
 	if err != nil {
 		return nil, fmt.Errorf("error: RPC error: %v", err)
 	}
@@ -66,12 +66,12 @@ func DoGetMetricReportDefinitionCollection(req teleproto.TelemetryRequest) (*tel
 }
 
 // DoGetMetricReportCollection defines the RPC call function for
-// the GetMetricReportCollectionRPC from telemetry micro service
+// the GetMetricReportCollection from telemetry micro service
 func DoGetMetricReportCollection(req teleproto.TelemetryRequest) (*teleproto.TelemetryResponse, error) {
 
 	telemetry := teleproto.NewTelemetryService(services.Telemetry, services.Service.Client())
 
-	resp, err := telemetry.GetMetricReportCollectionRPC(context.TODO(), &req)
+	resp, err := telemetry.GetMetricReportCollection(context.TODO(), &req)
 	if err != nil {
 		return nil, fmt.Errorf("error: RPC error: %v", err)
 	}
@@ -80,12 +80,12 @@ func DoGetMetricReportCollection(req teleproto.TelemetryRequest) (*teleproto.Tel
 }
 
 // DoGetTriggerCollection defines the RPC call function for
-// the GetTriggerCollectionRPC from telemetry micro service
+// the GetTriggerCollection from telemetry micro service
 func DoGetTriggerCollection(req teleproto.TelemetryRequest) (*teleproto.TelemetryResponse, error) {
 
 	telemetry := teleproto.NewTelemetryService(services.Telemetry, services.Service.Client())
 
-	resp, err := telemetry.GetTriggerCollectionRPC(context.TODO(), &req)
+	resp, err := telemetry.GetTriggerCollection(context.TODO(), &req)
 	if err != nil {
 		return nil, fmt.Errorf("error: RPC error: %v", err)
 	}
@@ -94,12 +94,12 @@ func DoGetTriggerCollection(req teleproto.TelemetryRequest) (*teleproto.Telemetr
 }
 
 // DoGetMetricDefinition defines the RPC call function for
-// the GetMetricDefinitionRPC from telemetry micro service
+// the GetMetricDefinition from telemetry micro service
 func DoGetMetricDefinition(req teleproto.TelemetryRequest) (*teleproto.TelemetryResponse, error) {
 
 	telemetry := teleproto.NewTelemetryService(services.Telemetry, services.Service.Client())
 
-	resp, err := telemetry.GetMetricDefinitionRPC(context.TODO(), &req)
+	resp, err := telemetry.GetMetricDefinition(context.TODO(), &req)
 	if err != nil {
 		return nil, fmt.Errorf("error: RPC error: %v", err)
 	}
@@ -108,12 +108,12 @@ func DoGetMetricDefinition(req teleproto.TelemetryRequest) (*teleproto.Telemetry
 }
 
 // DoGetMetricReportDefinition defines the RPC call function for
-// the GetMetricReportDefinitionRPC from telemetry micro service
+// the GetMetricReportDefinition from telemetry micro service
 func DoGetMetricReportDefinition(req teleproto.TelemetryRequest) (*teleproto.TelemetryResponse, error) {
 
 	telemetry := teleproto.NewTelemetryService(services.Telemetry, services.Service.Client())
 
-	resp, err := telemetry.GetMetricReportDefinitionRPC(context.TODO(), &req)
+	resp, err := telemetry.GetMetricReportDefinition(context.TODO(), &req)
 	if err != nil {
 		return nil, fmt.Errorf("error: RPC error: %v", err)
 	}
@@ -122,12 +122,12 @@ func DoGetMetricReportDefinition(req teleproto.TelemetryRequest) (*teleproto.Tel
 }
 
 // DoGetMetricReport defines the RPC call function for
-// the GetMetricReportRPC from telemetry micro service
+// the GetMetricReport from telemetry micro service
 func DoGetMetricReport(req teleproto.TelemetryRequest) (*teleproto.TelemetryResponse, error) {
 
 	telemetry := teleproto.NewTelemetryService(services.Telemetry, services.Service.Client())
 
-	resp, err := telemetry.GetMetricReportRPC(context.TODO(), &req)
+	resp, err := telemetry.GetMetricReport(context.TODO(), &req)
 	if err != nil {
 		return nil, fmt.Errorf("error: RPC error: %v", err)
 	}
@@ -136,12 +136,12 @@ func DoGetMetricReport(req teleproto.TelemetryRequest) (*teleproto.TelemetryResp
 }
 
 // DoGetTrigger defines the RPC call function for
-// the GetTriggerRPC from telemetry micro service
+// the GetTrigger from telemetry micro service
 func DoGetTrigger(req teleproto.TelemetryRequest) (*teleproto.TelemetryResponse, error) {
 
 	telemetry := teleproto.NewTelemetryService(services.Telemetry, services.Service.Client())
 
-	resp, err := telemetry.GetTriggerRPC(context.TODO(), &req)
+	resp, err := telemetry.GetTrigger(context.TODO(), &req)
 	if err != nil {
 		return nil, fmt.Errorf("error: RPC error: %v", err)
 	}
@@ -150,12 +150,12 @@ func DoGetTrigger(req teleproto.TelemetryRequest) (*teleproto.TelemetryResponse,
 }
 
 // DoUpdateTrigger defines the RPC call function for
-// the UpdateTriggerRPC from telemetry micro service
+// the UpdateTrigger from telemetry micro service
 func DoUpdateTrigger(req teleproto.TelemetryRequest) (*teleproto.TelemetryResponse, error) {
 
 	telemetry := teleproto.NewTelemetryService(services.Telemetry, services.Service.Client())
 
-	resp, err := telemetry.UpdateTriggerRPC(context.TODO(), &req)
+	resp, err := telemetry.UpdateTrigger(context.TODO(), &req)
 	if err != nil {
 		return nil, fmt.Errorf("error: RPC error: %v", err)
 	}

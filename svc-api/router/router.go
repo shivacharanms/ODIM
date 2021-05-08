@@ -134,16 +134,16 @@ func Router() *iris.Application {
 	}
 
 	telemetry := handle.TelemetryRPCs{
-		GetTelemetryServiceRPC: rpc.DoGetTelemetryService,
-		GetMetricDefinitionCollectionRPC: rpc.DoGetMetricDefinitionCollection,
+		GetTelemetryServiceRPC:                 rpc.DoGetTelemetryService,
+		GetMetricDefinitionCollectionRPC:       rpc.DoGetMetricDefinitionCollection,
 		GetMetricReportDefinitionCollectionRPC: rpc.DoGetMetricReportDefinitionCollection,
-		GetMetricReportCollectionRPC: rpc.DoGetMetricReportCollection,
-		GetTriggerCollectionRPC: rpc.DoGetTriggerCollection,
-		GetMetricDefinitionRPC: rpc.DoGetMetricDefinition,
-		GetMetricReportDefinitionRPC: rpc.DoGetMetricReportDefinition,
-		GetMetricReportRPC: rpc.DoGetMetricReport,
-		GetTriggerRPC: rpc.DoGetTrigger,
-		UpdateTriggerRPC: rpc.DoUpdateTrigger,
+		GetMetricReportCollectionRPC:           rpc.DoGetMetricReportCollection,
+		GetTriggerCollectionRPC:                rpc.DoGetTriggerCollection,
+		GetMetricDefinitionRPC:                 rpc.DoGetMetricDefinition,
+		GetMetricReportDefinitionRPC:           rpc.DoGetMetricReportDefinition,
+		GetMetricReportRPC:                     rpc.DoGetMetricReport,
+		GetTriggerRPC:                          rpc.DoGetTrigger,
+		UpdateTriggerRPC:                       rpc.DoUpdateTrigger,
 	}
 
 	registryFile := handle.Registry{
