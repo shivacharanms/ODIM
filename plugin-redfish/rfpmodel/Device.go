@@ -42,9 +42,9 @@ type HTTPHeaders struct {
 
 // Startup struct recieve request on Startup call
 type Startup struct {
-	Location   string   `json:"Location"`
-	EventTypes []string `json:"EventTypes,omitempty"`
-	Device     Device   `json:"Device"`
+	Location          string                       `json:"Location"`
+	EventTypes        []string                     `json:"EventTypes,omitempty"`
+	Device            Device                       `json:"Device"`
 	PluginStartUpData map[string]PluginStartUpData `json:"PluginStartUpData"`
 }
 

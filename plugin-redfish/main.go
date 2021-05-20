@@ -18,7 +18,6 @@ import (
 	"net/http"
 	"os"
 	"time"
-	"encoding/json"
 
 	"github.com/sirupsen/logrus"
 
