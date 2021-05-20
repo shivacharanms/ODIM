@@ -14,10 +14,13 @@
 package main
 
 import (
-	"github.com/sirupsen/logrus"
+	"encoding/json"
 	"net/http"
 	"os"
 	"time"
+	"encoding/json"
+
+	"github.com/sirupsen/logrus"
 
 	dc "github.com/ODIM-Project/ODIM/lib-messagebus/datacommunicator"
 	"github.com/ODIM-Project/ODIM/lib-utilities/common"
@@ -76,9 +79,8 @@ func main() {
 
 func app() {
 	app := routers()
-	go func() {
-		eventsrouters()
-	}()
+	go sendStartupEvent()
+	go eventsrouters()
 	conf := &lutilconf.HTTPConfig{
 		Certificate:   &config.Data.KeyCertConf.Certificate,
 		PrivateKey:    &config.Data.KeyCertConf.PrivateKey,
@@ -265,4 +267,30 @@ func intializePluginStatus() {
 	rfputilities.Status.Available = "yes"
 	rfputilities.Status.Uptime = time.Now().Format(time.RFC3339)
 
+}
+
+func sendStartupEvent() {
+	// grace wait time for plugin to be functional
+	time.Sleep(3 * time.Second)
+
+	log.Info("sending started event")
+	var eventData common.Event
+	eventData.EventID = "1"
+	eventData.EventTimestamp = time.Now().String()
+	eventData.EventType = "PluginStarted"
+	eventData.Message = "Plugin started and is functional;"
+	eventData.Severity = "OK"
+	eventData.OriginOfCondition = &common.Link{
+		Oid: "/ODIM/v1/Startup",
+	}
+
+	request, _ := json.Marshal(eventData)
+	event := common.Events{
+		IP:      config.Data.PluginConf.Host + ":" + config.Data.PluginConf.Port,
+		Request: request,
+	}
+	done := make(chan bool)
+	events := make([]interface{}, 1)
+	events = append(events, event)
+	go common.RunWriteWorkers(rfphandler.In, events, 1, done)
 }

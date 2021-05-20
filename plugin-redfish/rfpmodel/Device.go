@@ -45,4 +45,26 @@ type Startup struct {
 	Location   string   `json:"Location"`
 	EventTypes []string `json:"EventTypes,omitempty"`
 	Device     Device   `json:"Device"`
+	PluginStartUpData map[string]PluginStartUpData `json:"PluginStartUpData"`
+}
+
+// PluginStartUpData holds the required data for plugin startup
+type PluginStartUpData struct {
+	UserName               string                  `json:"UserName"`
+	Password               []byte                  `json:"Password"`
+	DeviceUUID             string                  `json:"DeviceUUID"`
+	Operation              string                  `json:"Operation"`
+	RequestType            string                  `json:"RequestType"`
+	DeviceSubscriptionInfo *DeviceSubscriptionInfo `json:"DeviceSubscriptionInfo"`
+	TriggerInfo            *TriggerInfo            `json:"TriggerInfo"`
+}
+
+// DeviceSubscriptionInfo holds the event subscription details of a device
+type DeviceSubscriptionInfo struct {
+	EventTypes []string `json:"EventTypes"`
+	Location   string   `json:"Location"`
+}
+
+// TriggerInfo holds the metric trigger info of a device
+type TriggerInfo struct {
 }
