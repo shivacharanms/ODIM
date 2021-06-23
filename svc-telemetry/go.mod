@@ -5,7 +5,7 @@ go 1.13
 require (
 	github.com/ODIM-Project/ODIM/lib-dmtf v0.0.0-20201201072448-9772421f1b55
 	github.com/ODIM-Project/ODIM/lib-rest-client v0.0.0-20210201172557-4fa2adafe1e3
-	github.com/ODIM-Project/ODIM/lib-utilities v0.0.0-20210519055855-227d83cff80f
+	github.com/ODIM-Project/ODIM/lib-utilities v0.0.0-20210622101031-5a8f11396b81
 	github.com/ODIM-Project/ODIM/svc-update v0.0.0-20210201172557-4fa2adafe1e3
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.5.1
