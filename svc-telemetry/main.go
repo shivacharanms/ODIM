@@ -54,7 +54,7 @@ func main() {
 	}
 	registerHandlers()
 	// Run server
-	if err := services.Service.Run(); err != nil {
+	if err := services.ODIMService.Run(); err != nil {
 		log.Error(err)
 	}
 
@@ -66,5 +66,5 @@ func registerHandlers() {
 		log.Error("fatal: error while trying to initialize service: " + err.Error())
 	}
 	tele := rpc.GetTele()
-	teleproto.RegisterTelemetryHandler(services.Service.Server(), tele)
+	teleproto.RegisterTelemetryServer(services.ODIMService.Server(), tele)
 }
