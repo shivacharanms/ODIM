@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	log "github.com/sirupsen/logrus"
 	"net/http"
-	"strings"
 
 	dmtf "github.com/ODIM-Project/ODIM/lib-dmtf/model"
 	"github.com/ODIM-Project/ODIM/lib-utilities/common"
@@ -30,6 +29,7 @@ import (
 	"github.com/ODIM-Project/ODIM/lib-utilities/errors"
 	teleproto "github.com/ODIM-Project/ODIM/lib-utilities/proto/telemetry"
 	"github.com/ODIM-Project/ODIM/lib-utilities/response"
+	"github.com/ODIM-Project/ODIM/svc-telemetry/tcommon"
 	tlresp "github.com/ODIM-Project/ODIM/svc-telemetry/tlresponse"
 )
 
@@ -257,11 +257,6 @@ func (e *ExternalInterface) GetMetricReportDefinition(req *teleproto.TelemetryRe
 		"OData-Version":     "4.0",
 	}
 
-	requestData := strings.Split(req.ResourceID, ":")
-	if len(requestData) <= 1 {
-		errorMessage := "error: SystemUUID not found"
-		return common.GeneralError(http.StatusNotFound, response.ResourceNotFound, errorMessage, []interface{}{"MetricReportDefinition", req.ResourceID}, nil)
-	}
 	data, gerr := e.DB.GetResource("MetricReportDefinition", req.URL, common.InMemory)
 	if gerr != nil {
 		log.Warn("Unable to get MetricReportDefinition details : " + gerr.Error())
@@ -281,7 +276,7 @@ func (e *ExternalInterface) GetMetricReportDefinition(req *teleproto.TelemetryRe
 
 }
 
-// GetMetricReport ...
+// GetMetricReport is for to get metric report from southbound resource
 func (e *ExternalInterface) GetMetricReport(req *teleproto.TelemetryRequest) response.RPC {
 	var resp response.RPC
 	resp.Header = map[string]string{
@@ -293,22 +288,20 @@ func (e *ExternalInterface) GetMetricReport(req *teleproto.TelemetryRequest) res
 		"OData-Version":     "4.0",
 	}
 
-	requestData := strings.Split(req.ResourceID, ":")
-	if len(requestData) <= 1 {
-		errorMessage := "error: SystemUUID not found"
-		return common.GeneralError(http.StatusNotFound, response.ResourceNotFound, errorMessage, []interface{}{"MetricReport", req.ResourceID}, nil)
+	var getDeviceInfoRequest = tcommon.ResourceInfoRequest{
+		URL:                 req.URL,
+		ContactClient:       e.External.ContactClient,
+		DevicePassword:      e.External.DevicePassword,
+		GetPluginStatus:     e.External.GetPluginStatus,
+		GetAllKeysFromTable: e.DB.GetAllKeysFromTable,
+		GetPluginData:       e.External.GetPluginData,
 	}
-	data, gerr := e.DB.GetResource("MetricReport", req.URL, common.InMemory)
-	if gerr != nil {
-		log.Warn("Unable to get MetricReport details : " + gerr.Error())
-		errorMessage := gerr.Error()
-		if errors.DBKeyNotFound == gerr.ErrNo() {
-			return common.GeneralError(http.StatusNotFound, response.ResourceNotFound, errorMessage, []interface{}{"MetricReport", req.URL}, nil)
-		}
-		return common.GeneralError(http.StatusInternalServerError, response.InternalError, errorMessage, nil, nil)
+	data, err := tcommon.GetResourceInfoFromDevice(getDeviceInfoRequest)
+	if err != nil {
+		return common.GeneralError(http.StatusNotFound, response.ResourceNotFound, err.Error(), []interface{}{"MetricReport", req.URL}, nil)
 	}
 	var resource map[string]interface{}
-	json.Unmarshal([]byte(data), &resource)
+	json.Unmarshal(data, &resource)
 	resp.Body = resource
 	resp.StatusCode = http.StatusOK
 	resp.StatusMessage = response.Success
@@ -329,11 +322,6 @@ func (e *ExternalInterface) GetMetricDefinition(req *teleproto.TelemetryRequest)
 		"OData-Version":     "4.0",
 	}
 
-	requestData := strings.Split(req.ResourceID, ":")
-	if len(requestData) <= 1 {
-		errorMessage := "error: SystemUUID not found"
-		return common.GeneralError(http.StatusNotFound, response.ResourceNotFound, errorMessage, []interface{}{"MetricDefinition", req.ResourceID}, nil)
-	}
 	data, gerr := e.DB.GetResource("MetricDefinition", req.URL, common.InMemory)
 	if gerr != nil {
 		log.Warn("Unable to get MetricDefinition details : " + gerr.Error())
@@ -365,11 +353,6 @@ func (e *ExternalInterface) GetTrigger(req *teleproto.TelemetryRequest) response
 		"OData-Version":     "4.0",
 	}
 
-	requestData := strings.Split(req.ResourceID, ":")
-	if len(requestData) <= 1 {
-		errorMessage := "error: SystemUUID not found"
-		return common.GeneralError(http.StatusNotFound, response.ResourceNotFound, errorMessage, []interface{}{"Triggers", req.ResourceID}, nil)
-	}
 	data, gerr := e.DB.GetResource("Triggers", req.URL, common.InMemory)
 	if gerr != nil {
 		log.Warn("Unable to get Triggers details : " + gerr.Error())
