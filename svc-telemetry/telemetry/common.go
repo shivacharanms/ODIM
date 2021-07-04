@@ -16,6 +16,9 @@ package telemetry
 
 import (
 	"net/http"
+	"encoding/json"
+	"fmt"
+	"runtime"
 
 	"github.com/ODIM-Project/ODIM/lib-rest-client/pmbhandle"
 	"github.com/ODIM-Project/ODIM/lib-utilities/common"
@@ -24,6 +27,7 @@ import (
 	"github.com/ODIM-Project/ODIM/lib-utilities/services"
 	"github.com/ODIM-Project/ODIM/svc-telemetry/tcommon"
 	"github.com/ODIM-Project/ODIM/svc-telemetry/tmodel"
+	taskproto "github.com/ODIM-Project/ODIM/lib-utilities/proto/task"
 )
 
 // ExternalInterface struct holds the structs to which hold function pointers to outboud calls
@@ -73,6 +77,9 @@ func GetExternalInterface() *ExternalInterface {
 			GetSessionUserName: services.GetSessionUserName,
 			GenericSave:        tmodel.GenericSave,
 			GetPluginStatus:    tcommon.GetPluginStatus,
+			CreateTask:         services.CreateTask,
+			UpdateTask:         TaskData,
+			CreateChildTask:    services.CreateChildTask,
 		},
 		DB: DB{
 			GetAllKeysFromTable: tmodel.GetAllKeysFromTable,
@@ -94,3 +101,27 @@ func fillTaskData(taskID, targetURI, request string, resp response.RPC, taskStat
 	}
 }
 
+// TaskData update the task with the given data
+func TaskData(taskData common.TaskData) error {
+	respBody, _ := json.Marshal(taskData.Response.Body)
+	payLoad := &taskproto.Payload{
+		HTTPHeaders:   taskData.Response.Header,
+		HTTPOperation: taskData.HTTPMethod,
+		JSONBody:      taskData.TaskRequest,
+		StatusCode:    taskData.Response.StatusCode,
+		TargetURI:     taskData.TargetURI,
+		ResponseBody:  respBody,
+	}
+
+	err := services.UpdateTask(taskData.TaskID, taskData.TaskState, taskData.TaskStatus, taskData.PercentComplete, payLoad, time.Now())
+	if err != nil && (err.Error() == common.Cancelling) {
+		// We cant do anything here as the task has done it work completely, we cant reverse it.
+		//Unless if we can do opposite/reverse action for delete server which is add server.
+		services.UpdateTask(taskData.TaskID, common.Cancelled, taskData.TaskStatus, taskData.PercentComplete, payLoad, time.Now())
+		if taskData.PercentComplete == 0 {
+			return fmt.Errorf("error while starting the task: %v", err)
+		}
+		runtime.Goexit()
+	}
+	return nil
+}
