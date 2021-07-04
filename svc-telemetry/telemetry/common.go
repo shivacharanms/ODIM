@@ -40,9 +40,12 @@ type External struct {
 	GetPluginData      func(string) (tmodel.Plugin, *errors.Error)
 	ContactPlugin      func(tcommon.PluginContactRequest, string) ([]byte, string, tcommon.ResponseStatus, error)
 	GetTarget          func(string) (*tmodel.Target, *errors.Error)
+	CreateTask         func(string) (string, error)
+	CreateChildTask    func(string, string) (string, error)
 	GetSessionUserName func(string) (string, error)
 	GenericSave        func([]byte, string, string) error
 	GetPluginStatus    func(tmodel.Plugin) bool
+	UpdateTask         func(common.TaskData) error
 }
 
 type responseStatus struct {
@@ -77,3 +80,17 @@ func GetExternalInterface() *ExternalInterface {
 		},
 	}
 }
+
+func fillTaskData(taskID, targetURI, request string, resp response.RPC, taskState string, taskStatus string, percentComplete int32, httpMethod string) common.TaskData {
+	return common.TaskData{
+		TaskID:          taskID,
+		TargetURI:       targetURI,
+		TaskRequest:     request,
+		Response:        resp,
+		TaskState:       taskState,
+		TaskStatus:      taskStatus,
+		PercentComplete: percentComplete,
+		HTTPMethod:      httpMethod,
+	}
+}
+

@@ -20,9 +20,11 @@ package telemetry
 // ---------------------------------------------------------------------------------------
 import (
 	"encoding/json"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 	"strings"
-	log "github.com/sirupsen/logrus"
+	"runtime"
+	"fmt"
 
 	dmtf "github.com/ODIM-Project/ODIM/lib-dmtf/model"
 	"github.com/ODIM-Project/ODIM/lib-utilities/common"
@@ -32,7 +34,7 @@ import (
 	"github.com/ODIM-Project/ODIM/lib-utilities/response"
 	"github.com/ODIM-Project/ODIM/svc-telemetry/tcommon"
 	tlresp "github.com/ODIM-Project/ODIM/svc-telemetry/tlresponse"
-	"github.com/ODIM-Project/forkedRepo/ODIM/svc-telemetry/tmodel"
+	"github.com/ODIM-Project/ODIM/svc-telemetry/tmodel"
 )
 
 // GetTelemetryService defines the functionality for knowing whether
@@ -377,22 +379,16 @@ func (e *ExternalInterface) GetTrigger(req *teleproto.TelemetryRequest) response
 // UpdateTrigger ...
 func (e *ExternalInterface) UpdateTrigger(taskID string, sessionUserName string, req *teleproto.TelemetryRequest) response.RPC {
 	var resp response.RPC
-	resp.Header = map[string]string{
-		"Allow":             `"GET"`,
-		"Cache-Control":     "no-cache",
-		"Connection":        "keep-alive",
-		"Content-type":      "application/json; charset=utf-8",
-		"Transfer-Encoding": "chunked",
-		"OData-Version":     "4.0",
-	}
+	var percentComplete int32
+	serverURI := req.URL
+	taskInfo := &common.TaskUpdateInfo{TaskID: taskID, TargetURI: serverURI, UpdateTask: e.External.UpdateTask, TaskRequest: string(req.RequestBody)}
 
-	// Todo: code for update operation
 	//empty request check
 	if isEmptyRequest(req.RequestBody) {
 		errMsg := "empty request can not be processed"
 		log.Error(errMsg)
 		return common.GeneralError(http.StatusBadRequest, response.PropertyMissing, errMsg, []interface{}{"request body"}, nil)
-	}	
+	}
 	// parsing the reuqest body
 	var trigger dmtf.Triggers
 	err := json.Unmarshal(req.RequestBody, &trigger)
@@ -416,14 +412,14 @@ func (e *ExternalInterface) UpdateTrigger(taskID string, sessionUserName string,
 
 	//Validate the request body
 	reqCheck := validateRequestBody(trigger)
-	if !reqCheck{
-		errMsg := "unable to parse the request" + err.Error()
+	if !reqCheck {
+		errMsg := "read-only parameters present"
 		log.Error(errMsg)
-		return common.GeneralError(http.StatusBadRequest, response.InternalError, errMsg, nil, nil)		
+		return common.GeneralError(http.StatusBadRequest, response.InternalError, errMsg, nil, nil)
 	}
 
-	pluginList, err := tmodel.GetAllKeysFromTable("Plugin",common.OnDisk)
-	if err != nil{
+	pluginList, err := tmodel.GetAllKeysFromTable("Plugin", common.OnDisk)
+	if err != nil {
 		errMsg := "Request parameters validaton failed: " + err.Error()
 		log.Error(errMsg)
 		return common.GeneralError(http.StatusInternalServerError, response.InternalError, errMsg, nil, nil)
@@ -431,17 +427,16 @@ func (e *ExternalInterface) UpdateTrigger(taskID string, sessionUserName string,
 	targetList := formTargetList(pluginList)
 	partialResultFlag := false
 	subTaskChannel := make(chan int32, len(targetList))
-	serverURI := req.URL
-	for _, target := range targetList{
+	for _, target := range targetList {
 		marshalBody, err := json.Marshal(trigger)
 		if err != nil {
-			errMsg := "Unable to parse the simple update request" + err.Error()
+			errMsg := "Unable to parse the trigger update request" + err.Error()
 			log.Warn(errMsg)
-			return common.GeneralError(http.StatusInternalServerError, response.InternalError, errMsg, nil, taskInfo)
+			return common.GeneralError(http.StatusBadRequest, response.InternalError, errMsg, nil, taskInfo)
 		}
 		triggerRequestBody := string(marshalBody)
 		updateURL := req.URL
-		go e.sendRequest(updateURL, target, triggerRequestBody, subTaskChannel, sessionUserName)
+		go e.sendRequest(updateURL, taskID, target, triggerRequestBody, subTaskChannel, sessionUserName)
 	}
 	resp.StatusCode = http.StatusOK
 	for i := 0; i < len(targetList); i++ {
@@ -475,7 +470,7 @@ func (e *ExternalInterface) UpdateTrigger(taskID string, sessionUserName string,
 		log.Warn(errMsg)
 		switch resp.StatusCode {
 		case http.StatusAccepted:
-			return common.GeneralError(http.StatusAccepted, response.TaskStarted, errMsg, []interface{}{fmt.Sprintf("%v", targetList)}, taskInfo )
+			return common.GeneralError(http.StatusAccepted, response.TaskStarted, errMsg, []interface{}{fmt.Sprintf("%v", targetList)}, taskInfo)
 		case http.StatusUnauthorized:
 			return common.GeneralError(http.StatusUnauthorized, response.ResourceAtURIUnauthorized, errMsg, []interface{}{fmt.Sprintf("%v", targetList)}, taskInfo)
 		case http.StatusNotFound:
@@ -486,7 +481,7 @@ func (e *ExternalInterface) UpdateTrigger(taskID string, sessionUserName string,
 			return common.GeneralError(http.StatusInternalServerError, response.InternalError, errMsg, nil, taskInfo)
 		}
 	}
-	
+
 	resp.Header = map[string]string{
 		"Cache-Control":     "no-cache",
 		"Connection":        "keep-alive",
@@ -503,17 +498,17 @@ func (e *ExternalInterface) UpdateTrigger(taskID string, sessionUserName string,
 	}
 	resp.Body = args.CreateGenericErrorResponse()
 
-	var task = fillTaskData(taskID, targetURI, string(req.RequestBody), resp, common.Completed, taskStatus, percentComplete, http.MethodPost)
+	var task = fillTaskData(taskID, serverURI, string(req.RequestBody), resp, common.Completed, taskStatus, percentComplete, http.MethodPost)
 	err = e.External.UpdateTask(task)
 	if err != nil && err.Error() == common.Cancelling {
-		task = fillTaskData(taskID, targetURI, string(req.RequestBody), resp, common.Cancelled, common.Critical, percentComplete, http.MethodPost)
+		task = fillTaskData(taskID, serverURI, string(req.RequestBody), resp, common.Cancelled, common.Critical, percentComplete, http.MethodPost)
 		e.External.UpdateTask(task)
 		runtime.Goexit()
 	}
 	return resp
 }
 
-func (e *ExternalInterface) sendRequest(serverURI string, plugin tmodel.Plugin, updateRequestBody string,  subTaskChannel chan<- int32, sessionUserName string) {
+func (e *ExternalInterface) sendRequest(serverURI,taskID string, plugin tmodel.Plugin, updateRequestBody string, subTaskChannel chan<- int32, sessionUserName string) {
 	var resp response.RPC
 	subTaskURI, err := e.External.CreateChildTask(sessionUserName, taskID)
 	if err != nil {
@@ -560,7 +555,7 @@ func (e *ExternalInterface) sendRequest(serverURI string, plugin tmodel.Plugin, 
 		}
 
 	}
-
+        var target tmodel.Target
 	target.PostBody = []byte(updateRequestBody)
 	contactRequest.DeviceInfo = target
 	contactRequest.OID = "/ODIM/v1/UpdateService/Actions/UpdateService.SimpleUpdate"
@@ -615,7 +610,7 @@ func formTargetList(keys []string) []tmodel.Plugin {
 }
 
 // check if any read-only parameters are present
-func validateRequestBody(trigger dmtf.Triggers) bool{
+func validateRequestBody(trigger dmtf.Triggers) bool {
 
 	return true
 }
