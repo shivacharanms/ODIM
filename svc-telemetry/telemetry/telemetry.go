@@ -20,8 +20,9 @@ package telemetry
 // ---------------------------------------------------------------------------------------
 import (
 	"encoding/json"
-	log "github.com/sirupsen/logrus"
 	"net/http"
+	"strings"
+	log "github.com/sirupsen/logrus"
 
 	dmtf "github.com/ODIM-Project/ODIM/lib-dmtf/model"
 	"github.com/ODIM-Project/ODIM/lib-utilities/common"
@@ -31,6 +32,7 @@ import (
 	"github.com/ODIM-Project/ODIM/lib-utilities/response"
 	"github.com/ODIM-Project/ODIM/svc-telemetry/tcommon"
 	tlresp "github.com/ODIM-Project/ODIM/svc-telemetry/tlresponse"
+	"github.com/ODIM-Project/forkedRepo/ODIM/svc-telemetry/tmodel"
 )
 
 // GetTelemetryService defines the functionality for knowing whether
@@ -373,7 +375,7 @@ func (e *ExternalInterface) GetTrigger(req *teleproto.TelemetryRequest) response
 }
 
 // UpdateTrigger ...
-func (e *ExternalInterface) UpdateTrigger(req *teleproto.TelemetryRequest) response.RPC {
+func (e *ExternalInterface) UpdateTrigger(taskID string, sessionUserName string, req *teleproto.TelemetryRequest) response.RPC {
 	var resp response.RPC
 	resp.Header = map[string]string{
 		"Allow":             `"GET"`,
@@ -385,5 +387,235 @@ func (e *ExternalInterface) UpdateTrigger(req *teleproto.TelemetryRequest) respo
 	}
 
 	// Todo: code for update operation
+	//empty request check
+	if isEmptyRequest(req.RequestBody) {
+		errMsg := "empty request can not be processed"
+		log.Error(errMsg)
+		return common.GeneralError(http.StatusBadRequest, response.PropertyMissing, errMsg, []interface{}{"request body"}, nil)
+	}	
+	// parsing the reuqest body
+	var trigger dmtf.Triggers
+	err := json.Unmarshal(req.RequestBody, &trigger)
+	if err != nil {
+		errMsg := "unable to parse the request" + err.Error()
+		log.Error(errMsg)
+		return common.GeneralError(http.StatusBadRequest, response.InternalError, errMsg, nil, nil)
+	}
+	// Validating the request JSON properties for case sensitive
+	invalidProperties, err := common.RequestParamsCaseValidator(req.RequestBody, trigger)
+	if err != nil {
+		errMsg := "Request parameters validaton failed: " + err.Error()
+		log.Error(errMsg)
+		return common.GeneralError(http.StatusInternalServerError, response.InternalError, errMsg, nil, nil)
+	} else if invalidProperties != "" {
+		errorMessage := "One or more properties given in the request body are not valid, ensure properties are listed in uppercamelcase "
+		log.Error(errorMessage)
+		resp := common.GeneralError(http.StatusBadRequest, response.PropertyUnknown, errorMessage, []interface{}{invalidProperties}, nil)
+		return resp
+	}
+
+	//Validate the request body
+	reqCheck := validateRequestBody(trigger)
+	if !reqCheck{
+		errMsg := "unable to parse the request" + err.Error()
+		log.Error(errMsg)
+		return common.GeneralError(http.StatusBadRequest, response.InternalError, errMsg, nil, nil)		
+	}
+
+	pluginList, err := tmodel.GetAllKeysFromTable("Plugin",common.OnDisk)
+	if err != nil{
+		errMsg := "Request parameters validaton failed: " + err.Error()
+		log.Error(errMsg)
+		return common.GeneralError(http.StatusInternalServerError, response.InternalError, errMsg, nil, nil)
+	}
+	targetList := formTargetList(pluginList)
+	partialResultFlag := false
+	subTaskChannel := make(chan int32, len(targetList))
+	serverURI := req.URL
+	for _, target := range targetList{
+		marshalBody, err := json.Marshal(trigger)
+		if err != nil {
+			errMsg := "Unable to parse the simple update request" + err.Error()
+			log.Warn(errMsg)
+			return common.GeneralError(http.StatusInternalServerError, response.InternalError, errMsg, nil, taskInfo)
+		}
+		triggerRequestBody := string(marshalBody)
+		updateURL := req.URL
+		go e.sendRequest(updateURL, target, triggerRequestBody, subTaskChannel, sessionUserName)
+	}
+	resp.StatusCode = http.StatusOK
+	for i := 0; i < len(targetList); i++ {
+		select {
+		case statusCode := <-subTaskChannel:
+			if statusCode != http.StatusOK {
+				partialResultFlag = true
+				if resp.StatusCode < statusCode {
+					resp.StatusCode = statusCode
+				}
+			}
+			if i < len(targetList)-1 {
+				percentComplete := int32(((i + 1) / len(targetList)) * 100)
+				var task = fillTaskData(taskID, serverURI, string(req.RequestBody), resp, common.Running, common.OK, percentComplete, http.MethodPost)
+				err := e.External.UpdateTask(task)
+				if err != nil && err.Error() == common.Cancelling {
+					task = fillTaskData(taskID, serverURI, string(req.RequestBody), resp, common.Cancelled, common.OK, percentComplete, http.MethodPost)
+					e.External.UpdateTask(task)
+					runtime.Goexit()
+				}
+			}
+		}
+	}
+	taskStatus := common.OK
+	if partialResultFlag {
+		taskStatus = common.Warning
+	}
+	percentComplete = 100
+	if resp.StatusCode != http.StatusOK {
+		errMsg := "One or more of the SimpleUpdate requests failed. for more information please check SubTasks in URI: /redfish/v1/TaskService/Tasks/" + taskID
+		log.Warn(errMsg)
+		switch resp.StatusCode {
+		case http.StatusAccepted:
+			return common.GeneralError(http.StatusAccepted, response.TaskStarted, errMsg, []interface{}{fmt.Sprintf("%v", targetList)}, taskInfo )
+		case http.StatusUnauthorized:
+			return common.GeneralError(http.StatusUnauthorized, response.ResourceAtURIUnauthorized, errMsg, []interface{}{fmt.Sprintf("%v", targetList)}, taskInfo)
+		case http.StatusNotFound:
+			return common.GeneralError(http.StatusNotFound, response.ResourceNotFound, errMsg, []interface{}{"option", "SimpleUpdate"}, taskInfo)
+		case http.StatusBadRequest:
+			return common.GeneralError(http.StatusBadRequest, response.PropertyUnknown, errMsg, []interface{}{"UpdateService.SimpleUpdate"}, taskInfo)
+		default:
+			return common.GeneralError(http.StatusInternalServerError, response.InternalError, errMsg, nil, taskInfo)
+		}
+	}
+	
+	resp.Header = map[string]string{
+		"Cache-Control":     "no-cache",
+		"Connection":        "keep-alive",
+		"Content-type":      "application/json; charset=utf-8",
+		"Transfer-Encoding": "chunked",
+		"OData-Version":     "4.0",
+	}
+	log.Info("All SimpleUpdate requests successfully completed. for more information please check SubTasks in URI: /redfish/v1/TaskService/Tasks/" + taskID)
+	resp.StatusMessage = response.Success
+	resp.StatusCode = http.StatusOK
+	args := response.Args{
+		Code:    resp.StatusMessage,
+		Message: "Request completed successfully",
+	}
+	resp.Body = args.CreateGenericErrorResponse()
+
+	var task = fillTaskData(taskID, targetURI, string(req.RequestBody), resp, common.Completed, taskStatus, percentComplete, http.MethodPost)
+	err = e.External.UpdateTask(task)
+	if err != nil && err.Error() == common.Cancelling {
+		task = fillTaskData(taskID, targetURI, string(req.RequestBody), resp, common.Cancelled, common.Critical, percentComplete, http.MethodPost)
+		e.External.UpdateTask(task)
+		runtime.Goexit()
+	}
 	return resp
+}
+
+func (e *ExternalInterface) sendRequest(serverURI string, plugin tmodel.Plugin, updateRequestBody string,  subTaskChannel chan<- int32, sessionUserName string) {
+	var resp response.RPC
+	subTaskURI, err := e.External.CreateChildTask(sessionUserName, taskID)
+	if err != nil {
+		subTaskChannel <- http.StatusInternalServerError
+		log.Warn("Unable to create sub task")
+		return
+	}
+	var subTaskID string
+	strArray := strings.Split(subTaskURI, "/")
+	if strings.HasSuffix(subTaskURI, "/") {
+		subTaskID = strArray[len(strArray)-2]
+	} else {
+		subTaskID = strArray[len(strArray)-1]
+	}
+	taskInfo := &common.TaskUpdateInfo{TaskID: subTaskID, TargetURI: serverURI, UpdateTask: e.External.UpdateTask, TaskRequest: updateRequestBody}
+
+	var percentComplete int32
+	var contactRequest tcommon.PluginContactRequest
+	contactRequest.ContactClient = e.External.ContactClient
+	contactRequest.Plugin = plugin
+
+	if strings.EqualFold(plugin.PreferredAuthType, "XAuthToken") {
+		var err error
+		contactRequest.HTTPMethodType = http.MethodPost
+		contactRequest.DeviceInfo = map[string]interface{}{
+			"UserName": plugin.Username,
+			"Password": string(plugin.Password),
+		}
+		contactRequest.OID = "/ODIM/v1/Sessions"
+		_, token, getResponse, err := e.External.ContactPlugin(contactRequest, "error while creating session with the plugin: ")
+
+		if err != nil {
+			subTaskChannel <- getResponse.StatusCode
+			errMsg := err.Error()
+			log.Warn(errMsg)
+			common.GeneralError(getResponse.StatusCode, getResponse.StatusMessage, errMsg, getResponse.MsgArgs, taskInfo)
+			return
+		}
+		contactRequest.Token = token
+	} else {
+		contactRequest.BasicAuth = map[string]string{
+			"UserName": plugin.Username,
+			"Password": string(plugin.Password),
+		}
+
+	}
+
+	target.PostBody = []byte(updateRequestBody)
+	contactRequest.DeviceInfo = target
+	contactRequest.OID = "/ODIM/v1/UpdateService/Actions/UpdateService.SimpleUpdate"
+	contactRequest.HTTPMethodType = http.MethodPost
+	_, _, getResponse, err := e.External.ContactPlugin(contactRequest, "error while performing simple update action: ")
+	if err != nil {
+		subTaskChannel <- getResponse.StatusCode
+		errMsg := err.Error()
+		log.Warn(errMsg)
+		common.GeneralError(getResponse.StatusCode, getResponse.StatusMessage, errMsg, getResponse.MsgArgs, taskInfo)
+		return
+	}
+	resp.Header = map[string]string{
+		"Cache-Control":     "no-cache",
+		"Connection":        "keep-alive",
+		"Content-type":      "application/json; charset=utf-8",
+		"Transfer-Encoding": "chunked",
+		"OData-Version":     "4.0",
+	}
+	resp.StatusCode = http.StatusOK
+	percentComplete = 100
+	subTaskChannel <- int32(getResponse.StatusCode)
+	var task = fillTaskData(subTaskID, serverURI, updateRequestBody, resp, common.Completed, common.OK, percentComplete, http.MethodPost)
+	err = e.External.UpdateTask(task)
+	if err != nil && err.Error() == common.Cancelling {
+		var task = fillTaskData(subTaskID, serverURI, updateRequestBody, resp, common.Cancelled, common.Critical, percentComplete, http.MethodPost)
+		e.External.UpdateTask(task)
+	}
+	return
+}
+
+func isEmptyRequest(requestBody []byte) bool {
+	var updateRequest map[string]interface{}
+	json.Unmarshal(requestBody, &updateRequest)
+	if len(updateRequest) <= 0 {
+		return true
+	}
+	return false
+}
+
+func formTargetList(keys []string) []tmodel.Plugin {
+	var plugins []tmodel.Plugin
+	for _, key := range keys {
+		plugin, err := tmodel.GetPluginData(key)
+		if err != nil {
+			log.Error("failed to get details of " + key + " plugin: " + err.Error())
+			continue
+		}
+		plugins = append(plugins, plugin)
+	}
+	return plugins
+}
+
+// check if any read-only parameters are present
+func validateRequestBody(trigger dmtf.Triggers) bool{
+
+	return true
 }

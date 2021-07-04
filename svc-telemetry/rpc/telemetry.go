@@ -18,9 +18,11 @@ import (
 	"context"
 	log "github.com/sirupsen/logrus"
 	"net/http"
+	"strings"
 
 	"github.com/ODIM-Project/ODIM/lib-utilities/common"
 	teleproto "github.com/ODIM-Project/ODIM/lib-utilities/proto/telemetry"
+	"github.com/ODIM-Project/ODIM/lib-utilities/response"
 )
 
 // SESSAUTHFAILED string constant to raise errors
@@ -136,6 +138,50 @@ func (a *Telemetry) UpdateTrigger(ctx context.Context, req *teleproto.TelemetryR
 		fillProtoResponse(resp, authResp)
 		return nil
 	}
-	fillProtoResponse(resp, a.connector.UpdateTrigger(req))
+	sessionUserName, err := a.connector.External.GetSessionUserName(req.SessionToken)
+	if err != nil {
+		errMsg := "error while trying to get the session username: " + err.Error()
+		generateRPCResponse(common.GeneralError(http.StatusUnauthorized, response.NoValidSession, errMsg, nil, nil), resp)
+		log.Warn(errMsg)
+		return nil
+	}
+	taskURI, err := a.connector.External.CreateTask(sessionUserName)
+	if err != nil {
+		errMsg := "error while trying to create task: " + err.Error()
+		generateRPCResponse(common.GeneralError(http.StatusInternalServerError, response.InternalError, errMsg, nil, nil), resp)
+		log.Warn(errMsg)
+		return nil
+	}
+	strArray := strings.Split(taskURI, "/")
+	var taskID string
+	if strings.HasSuffix(taskURI, "/") {
+		taskID = strArray[len(strArray)-2]
+	} else {
+		taskID = strArray[len(strArray)-1]
+	}
+	err = a.connector.External.UpdateTask(common.TaskData{
+		TaskID:          taskID,
+		TargetURI:       taskURI,
+		TaskState:       common.Running,
+		TaskStatus:      common.OK,
+		PercentComplete: 0,
+		HTTPMethod:      http.MethodPost,
+	})
+	if err != nil {
+		log.Warn("error while contacting task-service with UpdateTask RPC : " + err.Error())
+	}
+	go a.connector.UpdateTrigger(taskID, sessionUserName, req)
+	// return 202 Accepted
+	var rpcResp = response.RPC{
+		StatusCode:    http.StatusAccepted,
+		StatusMessage: response.TaskStarted,
+		Header: map[string]string{
+			"Content-type": "application/json; charset=utf-8",
+			"Location":     "/taskmon/" + taskID,
+		},
+	}
+	generateTaskRespone(taskID, taskURI, &rpcResp)
+	generateRPCResponse(rpcResp, resp)
+	//fillProtoResponse(resp, a.connector.UpdateTrigger(req))
 	return nil
 }
