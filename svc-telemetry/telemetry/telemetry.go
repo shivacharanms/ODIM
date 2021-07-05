@@ -20,11 +20,11 @@ package telemetry
 // ---------------------------------------------------------------------------------------
 import (
 	"encoding/json"
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	"net/http"
-	"strings"
 	"runtime"
-	"fmt"
+	"strings"
 
 	dmtf "github.com/ODIM-Project/ODIM/lib-dmtf/model"
 	"github.com/ODIM-Project/ODIM/lib-utilities/common"
@@ -381,6 +381,9 @@ func (e *ExternalInterface) UpdateTrigger(taskID string, sessionUserName string,
 	var resp response.RPC
 	var percentComplete int32
 	serverURI := req.URL
+        log.Info("Request in telemetry service")
+        log.Info(req.RequestBody)
+        log.Info(serverURI)
 	taskInfo := &common.TaskUpdateInfo{TaskID: taskID, TargetURI: serverURI, UpdateTask: e.External.UpdateTask, TaskRequest: string(req.RequestBody)}
 
 	//empty request check
@@ -424,6 +427,8 @@ func (e *ExternalInterface) UpdateTrigger(taskID string, sessionUserName string,
 		log.Error(errMsg)
 		return common.GeneralError(http.StatusInternalServerError, response.InternalError, errMsg, nil, nil)
 	}
+	log.Info("Count of plugin list")
+	log.Info(len(pluginList))
 	targetList := formTargetList(pluginList)
 	partialResultFlag := false
 	subTaskChannel := make(chan int32, len(targetList))
@@ -466,7 +471,7 @@ func (e *ExternalInterface) UpdateTrigger(taskID string, sessionUserName string,
 	}
 	percentComplete = 100
 	if resp.StatusCode != http.StatusOK {
-		errMsg := "One or more of the SimpleUpdate requests failed. for more information please check SubTasks in URI: /redfish/v1/TaskService/Tasks/" + taskID
+		errMsg := "One or more of the trigger update requests failed. for more information please check SubTasks in URI: /redfish/v1/TaskService/Tasks/" + taskID
 		log.Warn(errMsg)
 		switch resp.StatusCode {
 		case http.StatusAccepted:
@@ -474,9 +479,9 @@ func (e *ExternalInterface) UpdateTrigger(taskID string, sessionUserName string,
 		case http.StatusUnauthorized:
 			return common.GeneralError(http.StatusUnauthorized, response.ResourceAtURIUnauthorized, errMsg, []interface{}{fmt.Sprintf("%v", targetList)}, taskInfo)
 		case http.StatusNotFound:
-			return common.GeneralError(http.StatusNotFound, response.ResourceNotFound, errMsg, []interface{}{"option", "SimpleUpdate"}, taskInfo)
+			return common.GeneralError(http.StatusNotFound, response.ResourceNotFound, errMsg, []interface{}{"option", "Triggers"}, taskInfo)
 		case http.StatusBadRequest:
-			return common.GeneralError(http.StatusBadRequest, response.PropertyUnknown, errMsg, []interface{}{"UpdateService.SimpleUpdate"}, taskInfo)
+			return common.GeneralError(http.StatusBadRequest, response.PropertyUnknown, errMsg, []interface{}{"Triggers"}, taskInfo)
 		default:
 			return common.GeneralError(http.StatusInternalServerError, response.InternalError, errMsg, nil, taskInfo)
 		}
@@ -489,7 +494,7 @@ func (e *ExternalInterface) UpdateTrigger(taskID string, sessionUserName string,
 		"Transfer-Encoding": "chunked",
 		"OData-Version":     "4.0",
 	}
-	log.Info("All SimpleUpdate requests successfully completed. for more information please check SubTasks in URI: /redfish/v1/TaskService/Tasks/" + taskID)
+	log.Info("All Trigger updates requests successfully completed. for more information please check SubTasks in URI: /redfish/v1/TaskService/Tasks/" + taskID)
 	resp.StatusMessage = response.Success
 	resp.StatusCode = http.StatusOK
 	args := response.Args{
@@ -508,7 +513,8 @@ func (e *ExternalInterface) UpdateTrigger(taskID string, sessionUserName string,
 	return resp
 }
 
-func (e *ExternalInterface) sendRequest(serverURI,taskID string, plugin tmodel.Plugin, updateRequestBody string, subTaskChannel chan<- int32, sessionUserName string) {
+func (e *ExternalInterface) sendRequest(serverURI, taskID string, plugin tmodel.Plugin, updateRequestBody string, subTaskChannel chan<- int32, sessionUserName string) {
+	log.Info("INSIDE send request")
 	var resp response.RPC
 	subTaskURI, err := e.External.CreateChildTask(sessionUserName, taskID)
 	if err != nil {
@@ -555,7 +561,7 @@ func (e *ExternalInterface) sendRequest(serverURI,taskID string, plugin tmodel.P
 		}
 
 	}
-        var target tmodel.Target
+	var target tmodel.Target
 	target.PostBody = []byte(updateRequestBody)
 	contactRequest.DeviceInfo = target
 	contactRequest.OID = "/ODIM/v1/UpdateService/Actions/UpdateService.SimpleUpdate"

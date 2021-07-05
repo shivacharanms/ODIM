@@ -16,23 +16,15 @@
 package rfphandler
 
 import (
-	pluginConfig "github.com/ODIM-Project/ODIM/plugin-redfish/config"
 	"github.com/ODIM-Project/ODIM/plugin-redfish/rfpmodel"
 	"github.com/ODIM-Project/ODIM/plugin-redfish/rfputilities"
 	iris "github.com/kataras/iris/v12"
 	log "github.com/sirupsen/logrus"
-	"io/ioutil"
 	"net/http"
-	"strings"
 )
 
-// ExternalInterface enables the communicunication with the external functions
-type ExternalInterface struct {
-	TokenValidation func(string) bool
-	SendRequestToDevice   func(string, *rfputilities.RedfishDevice) (int, []byte, map[string]interface{}, error)
-}
 
-// UpdateTrigger updates the trigger parameters with read-write enabled 
+// UpdateTrigger updates the trigger parameters with read-write enabled
 func (e *ExternalInterface) UpdateTrigger(ctx iris.Context) {
 	//Get token from Request
 	token := ctx.GetHeader("X-Auth-Token")
@@ -64,10 +56,10 @@ func (e *ExternalInterface) UpdateTrigger(ctx iris.Context) {
 	var successCount int
 	var notFoundCount int
 	var internalErrorCount int
-	for _, device := range devices{
+	for _, device := range devices {
 		device.PostBody = deviceDetails.PostBody
-		response := e.SendRequestToDevice(device, uri)
-		switch response.StatusCode{
+		response := sendRequestToDevice(device, uri)
+		switch response.StatusCode {
 		case http.StatusOK:
 			successCount++
 		case http.StatusNotFound:
@@ -75,15 +67,15 @@ func (e *ExternalInterface) UpdateTrigger(ctx iris.Context) {
 		default:
 			internalErrorCount++
 		}
-		
+
 	}
-	if successCount > 0{
+	if successCount > 0 {
 		ctx.StatusCode(http.StatusOK)
 		return
-	}	
+	}
 }
 
-func SendRequestToDevice(device rfpmodel.Device, uri string) (*http.Response){
+func sendRequestToDevice(device rfpmodel.Device, uri string) *http.Response {
 	redfishClient, err := rfputilities.GetRedfishClient()
 	if err != nil {
 		errMsg := "While trying to get the redfish client, got: " + err.Error()

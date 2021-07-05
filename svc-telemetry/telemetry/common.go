@@ -15,19 +15,20 @@
 package telemetry
 
 import (
-	"net/http"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"runtime"
+	"time"
 
 	"github.com/ODIM-Project/ODIM/lib-rest-client/pmbhandle"
 	"github.com/ODIM-Project/ODIM/lib-utilities/common"
 	"github.com/ODIM-Project/ODIM/lib-utilities/errors"
+	taskproto "github.com/ODIM-Project/ODIM/lib-utilities/proto/task"
 	"github.com/ODIM-Project/ODIM/lib-utilities/response"
 	"github.com/ODIM-Project/ODIM/lib-utilities/services"
 	"github.com/ODIM-Project/ODIM/svc-telemetry/tcommon"
 	"github.com/ODIM-Project/ODIM/svc-telemetry/tmodel"
-	taskproto "github.com/ODIM-Project/ODIM/lib-utilities/proto/task"
 )
 
 // ExternalInterface struct holds the structs to which hold function pointers to outboud calls
