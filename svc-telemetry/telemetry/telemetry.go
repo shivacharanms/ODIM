@@ -381,9 +381,9 @@ func (e *ExternalInterface) UpdateTrigger(taskID string, sessionUserName string,
 	var resp response.RPC
 	var percentComplete int32
 	serverURI := req.URL
-        log.Info("Request in telemetry service")
-        log.Info(req.RequestBody)
-        log.Info(serverURI)
+	log.Info("Request in telemetry service")
+	log.Info(req.RequestBody)
+	log.Info(serverURI)
 	taskInfo := &common.TaskUpdateInfo{TaskID: taskID, TargetURI: serverURI, UpdateTask: e.External.UpdateTask, TaskRequest: string(req.RequestBody)}
 
 	//empty request check
@@ -411,14 +411,6 @@ func (e *ExternalInterface) UpdateTrigger(taskID string, sessionUserName string,
 		log.Error(errorMessage)
 		resp := common.GeneralError(http.StatusBadRequest, response.PropertyUnknown, errorMessage, []interface{}{invalidProperties}, nil)
 		return resp
-	}
-
-	//Validate the request body
-	reqCheck := validateRequestBody(trigger)
-	if !reqCheck {
-		errMsg := "read-only parameters present"
-		log.Error(errMsg)
-		return common.GeneralError(http.StatusBadRequest, response.InternalError, errMsg, nil, nil)
 	}
 
 	pluginList, err := tmodel.GetAllKeysFromTable("Plugin", common.OnDisk)
@@ -455,10 +447,10 @@ func (e *ExternalInterface) UpdateTrigger(taskID string, sessionUserName string,
 			}
 			if i < len(targetList)-1 {
 				percentComplete := int32(((i + 1) / len(targetList)) * 100)
-				var task = fillTaskData(taskID, serverURI, string(req.RequestBody), resp, common.Running, common.OK, percentComplete, http.MethodPost)
+				var task = fillTaskData(taskID, serverURI, string(req.RequestBody), resp, common.Running, common.OK, percentComplete, http.MethodPatch)
 				err := e.External.UpdateTask(task)
 				if err != nil && err.Error() == common.Cancelling {
-					task = fillTaskData(taskID, serverURI, string(req.RequestBody), resp, common.Cancelled, common.OK, percentComplete, http.MethodPost)
+					task = fillTaskData(taskID, serverURI, string(req.RequestBody), resp, common.Cancelled, common.OK, percentComplete, http.MethodPatch)
 					e.External.UpdateTask(task)
 					runtime.Goexit()
 				}
@@ -503,10 +495,10 @@ func (e *ExternalInterface) UpdateTrigger(taskID string, sessionUserName string,
 	}
 	resp.Body = args.CreateGenericErrorResponse()
 
-	var task = fillTaskData(taskID, serverURI, string(req.RequestBody), resp, common.Completed, taskStatus, percentComplete, http.MethodPost)
+	var task = fillTaskData(taskID, serverURI, string(req.RequestBody), resp, common.Completed, taskStatus, percentComplete, http.MethodPatch)
 	err = e.External.UpdateTask(task)
 	if err != nil && err.Error() == common.Cancelling {
-		task = fillTaskData(taskID, serverURI, string(req.RequestBody), resp, common.Cancelled, common.Critical, percentComplete, http.MethodPost)
+		task = fillTaskData(taskID, serverURI, string(req.RequestBody), resp, common.Cancelled, common.Critical, percentComplete, http.MethodPatch)
 		e.External.UpdateTask(task)
 		runtime.Goexit()
 	}
@@ -538,7 +530,7 @@ func (e *ExternalInterface) sendRequest(serverURI, taskID string, plugin tmodel.
 
 	if strings.EqualFold(plugin.PreferredAuthType, "XAuthToken") {
 		var err error
-		contactRequest.HTTPMethodType = http.MethodPost
+		contactRequest.HTTPMethodType = http.MethodPatch
 		contactRequest.DeviceInfo = map[string]interface{}{
 			"UserName": plugin.Username,
 			"Password": string(plugin.Password),
@@ -564,9 +556,9 @@ func (e *ExternalInterface) sendRequest(serverURI, taskID string, plugin tmodel.
 	var target tmodel.Target
 	target.PostBody = []byte(updateRequestBody)
 	contactRequest.DeviceInfo = target
-	contactRequest.OID = "/ODIM/v1/UpdateService/Actions/UpdateService.SimpleUpdate"
-	contactRequest.HTTPMethodType = http.MethodPost
-	_, _, getResponse, err := e.External.ContactPlugin(contactRequest, "error while performing simple update action: ")
+	contactRequest.OID = serverURI
+	contactRequest.HTTPMethodType = http.MethodPatch
+	_, _, getResponse, err := e.External.ContactPlugin(contactRequest, "error while performing trigger update action: ")
 	if err != nil {
 		subTaskChannel <- getResponse.StatusCode
 		errMsg := err.Error()
@@ -584,10 +576,10 @@ func (e *ExternalInterface) sendRequest(serverURI, taskID string, plugin tmodel.
 	resp.StatusCode = http.StatusOK
 	percentComplete = 100
 	subTaskChannel <- int32(getResponse.StatusCode)
-	var task = fillTaskData(subTaskID, serverURI, updateRequestBody, resp, common.Completed, common.OK, percentComplete, http.MethodPost)
+	var task = fillTaskData(subTaskID, serverURI, updateRequestBody, resp, common.Completed, common.OK, percentComplete, http.MethodPatch)
 	err = e.External.UpdateTask(task)
 	if err != nil && err.Error() == common.Cancelling {
-		var task = fillTaskData(subTaskID, serverURI, updateRequestBody, resp, common.Cancelled, common.Critical, percentComplete, http.MethodPost)
+		var task = fillTaskData(subTaskID, serverURI, updateRequestBody, resp, common.Cancelled, common.Critical, percentComplete, http.MethodPatch)
 		e.External.UpdateTask(task)
 	}
 	return
@@ -613,10 +605,4 @@ func formTargetList(keys []string) []tmodel.Plugin {
 		plugins = append(plugins, plugin)
 	}
 	return plugins
-}
-
-// check if any read-only parameters are present
-func validateRequestBody(trigger dmtf.Triggers) bool {
-
-	return true
 }
