@@ -11,7 +11,6 @@
 //WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 //License for the specific language governing permissions and limitations
 // under the License.
-
 // Packahe rfphandler ...
 package rfphandler
 
@@ -26,27 +25,26 @@ import (
 	"testing"
 )
 
-func mockSimpleUpdate(username, password, url string, w http.ResponseWriter) {
+func mockUpdateTrigger(username, password, url string, w http.ResponseWriter) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func TestSimpleUpdate(t *testing.T) {
+func TestUpdateTrigger(t *testing.T) {
 	config.SetUpMockConfig(t)
 
 	deviceHost := "localhost"
 	devicePort := "1234"
-	ts := startTestServer(mockSimpleUpdate)
+	ts := startTestServer(mockUpdateTrigger)
 	// Start the server.
 	ts.StartTLS()
 	defer ts.Close()
 	mockApp := iris.New()
 	redfishRoutes := mockApp.Party("/ODIM/v1")
 
-	redfishRoutes.Post("/UpdateService/Actions.SimpleUpdate", SimpleUpdate)
+	redfishRoutes.Post("/TelemetryService/Triggers/sample", SimpleUpdate)
 	rfpresponse.PluginToken = "token"
 	test := httptest.New(t, mockApp)
-	attributes := map[string]interface{}{"ImageUri": "abc",
-		"Targets": []string{"/ODIM/v1/Systems/uuid:1"}}
+	attributes := map[string]interface{}{"EventTriggers": []string{"Alert"}}
 	attributeByte, _ := json.Marshal(attributes)
 	requestBody := map[string]interface{}{
 		"ManagerAddress": fmt.Sprintf("%s:%s", deviceHost, devicePort),
@@ -54,28 +52,5 @@ func TestSimpleUpdate(t *testing.T) {
 		"Password":       []byte("P@$$w0rd"),
 		"PostBody":       attributeByte,
 	}
-	test.POST("/ODIM/v1/UpdateService/Actions.SimpleUpdate").WithJSON(requestBody).Expect().Status(http.StatusOK)
-}
-
-func TestStartUpdate(t *testing.T) {
-	config.SetUpMockConfig(t)
-
-	deviceHost := "localhost"
-	devicePort := "1234"
-	ts := startTestServer(mockSimpleUpdate)
-	// Start the server.
-	ts.StartTLS()
-	defer ts.Close()
-	mockApp := iris.New()
-	redfishRoutes := mockApp.Party("/ODIM/v1")
-
-	redfishRoutes.Post("/UpdateService/Actions.StartUpdate", StartUpdate)
-	rfpresponse.PluginToken = "token"
-	test := httptest.New(t, mockApp)
-	requestBody := map[string]interface{}{
-		"ManagerAddress": fmt.Sprintf("%s:%s", deviceHost, devicePort),
-		"UserName":       "admin",
-		"Password":       []byte("P@$$w0rd"),
-	}
-	test.POST("/ODIM/v1/UpdateService/Actions.StartUpdate").WithJSON(requestBody).Expect().Status(http.StatusOK)
+	test.POST("/ODIM/v1/TelemetryService/Triggers/sample").WithJSON(requestBody).Expect().Status(http.StatusOK)
 }
