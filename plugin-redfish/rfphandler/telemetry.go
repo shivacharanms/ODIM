@@ -23,9 +23,8 @@ import (
 	"net/http"
 )
 
-
 // UpdateTrigger updates the trigger parameters with read-write enabled
-func (e *ExternalInterface) UpdateTrigger(ctx iris.Context) {
+func UpdateTrigger(ctx iris.Context) {
 	//Get token from Request
 	token := ctx.GetHeader("X-Auth-Token")
 	//Validating the token

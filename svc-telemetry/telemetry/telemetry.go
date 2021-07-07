@@ -66,11 +66,11 @@ func (e *ExternalInterface) GetTelemetryService() response.RPC {
 	resp.StatusMessage = response.Success
 
 	resp.Header = map[string]string{
-		"Allow":         "GET",
-		"Cache-Control": "no-cache",
-		"Connection":    "Keep-alive",
-		"Content-type":  "application/json; charset=utf-8",
-		"Link": "	</redfish/v1/SchemaStore/en/TelemetryService.json>; rel=describedby",
+		"Allow":             "GET",
+		"Cache-Control":     "no-cache",
+		"Connection":        "Keep-alive",
+		"Content-type":      "application/json; charset=utf-8",
+		"Link":              "</redfish/v1/SchemaStore/en/TelemetryService.json>; rel=describedby",
 		"Transfer-Encoding": "chunked",
 		"X-Frame-Options":   "sameorigin",
 	}
@@ -87,16 +87,16 @@ func (e *ExternalInterface) GetTelemetryService() response.RPC {
 			HealthRollup: "OK",
 		},
 		ServiceEnabled: isServiceEnabled,
-		MetricDefinitions: &dmtf.Link{
+		MetricDefinitions: dmtf.Link{
 			Oid: "/redfish/v1/TelemetryService/MetricDefinitions",
 		},
-		MetricReportDefinitions: &dmtf.Link{
+		MetricReportDefinitions: dmtf.Link{
 			Oid: "/redfish/v1/TelemetryService/MetricReportDefinitions",
 		},
-		MetricReports: &dmtf.Link{
+		MetricReports: dmtf.Link{
 			Oid: "/redfish/v1/TelemetryService/MetricReports",
 		},
-		Triggers: &dmtf.Link{
+		Triggers: dmtf.Link{
 			Oid: "/redfish/v1/TelemetryService/Triggers",
 		},
 	}

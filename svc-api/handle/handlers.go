@@ -152,7 +152,7 @@ func getService(microServices []string, uuid string) models.ServiceRoot {
 					serviceRoot.UpdateService = &models.Service{OdataID: servicePath}
 				}
 			}
-		case "TelemetryService":
+		case "Telemetry":
 			serviceNodes, err := reg.GetService(srv.Telemetry)
 			if err == nil {
 				if len(serviceNodes) != 0 {
