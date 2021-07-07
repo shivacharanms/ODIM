@@ -16,9 +16,9 @@
 package handle
 
 import (
+	"encoding/json"
 	log "github.com/sirupsen/logrus"
 	"net/http"
-        "encoding/json"
 
 	"github.com/ODIM-Project/ODIM/lib-utilities/common"
 	telemetryproto "github.com/ODIM-Project/ODIM/lib-utilities/proto/telemetry"
