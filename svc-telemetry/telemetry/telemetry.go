@@ -506,7 +506,6 @@ func (e *ExternalInterface) UpdateTrigger(taskID string, sessionUserName string,
 }
 
 func (e *ExternalInterface) sendRequest(serverURI, taskID string, plugin tmodel.Plugin, updateRequestBody string, subTaskChannel chan<- int32, sessionUserName string) {
-	log.Info("INSIDE send request")
 	var resp response.RPC
 	subTaskURI, err := e.External.CreateChildTask(sessionUserName, taskID)
 	if err != nil {

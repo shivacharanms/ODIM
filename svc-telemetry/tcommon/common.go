@@ -138,10 +138,8 @@ func ContactPlugin(req PluginContactRequest, errorMessage string) ([]byte, strin
 	var resp ResponseStatus
 	var response *http.Response
 	var err error
-	log.Info("INSIDE contact client")
 	response, err = callPlugin(req)
 	if err != nil {
-		log.Info("INSIDE call plugin error")
 		if req.GetPluginStatus(req.Plugin) {
 			response, err = callPlugin(req)
 		}
@@ -149,7 +147,6 @@ func ContactPlugin(req PluginContactRequest, errorMessage string) ([]byte, strin
 			errorMessage = errorMessage + err.Error()
 			resp.StatusCode = http.StatusInternalServerError
 			resp.StatusMessage = errors.InternalError
-			log.Info("HERE")
 			log.Error(errorMessage)
 			return nil, "", resp, fmt.Errorf(errorMessage)
 		}
