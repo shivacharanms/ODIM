@@ -381,9 +381,6 @@ func (e *ExternalInterface) UpdateTrigger(taskID string, sessionUserName string,
 	var resp response.RPC
 	var percentComplete int32
 	serverURI := req.URL
-	log.Info("Request in telemetry service")
-	log.Info(req.RequestBody)
-	log.Info(serverURI)
 	taskInfo := &common.TaskUpdateInfo{TaskID: taskID, TargetURI: serverURI, UpdateTask: e.External.UpdateTask, TaskRequest: string(req.RequestBody)}
 
 	//empty request check
