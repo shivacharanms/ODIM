@@ -75,13 +75,13 @@ func UpdateTrigger(ctx iris.Context) {
 }
 
 func sendRequestToDevice(device rfpmodel.Device, uri string) *http.Response {
+	var response http.Response
 	redfishClient, err := rfputilities.GetRedfishClient()
 	if err != nil {
 		errMsg := "While trying to get the redfish client, got: " + err.Error()
 		log.Error(errMsg)
-		var resp *http.Response
-		resp.StatusCode = http.StatusInternalServerError
-		return resp
+		response.StatusCode = http.StatusInternalServerError
+		return &response
 	}
 	deviceDetails := &rfputilities.RedfishDevice{
 		Host:     device.Host,
@@ -93,6 +93,8 @@ func sendRequestToDevice(device rfpmodel.Device, uri string) *http.Response {
 	if err != nil {
 		errorMessage := "While trying to patch triggers, got:" + err.Error()
 		log.Error(errorMessage)
+		response.StatusCode = http.StatusInternalServerError
+		return &response
 	}
 	return resp
 }

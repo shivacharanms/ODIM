@@ -15,18 +15,35 @@
 package rfphandler
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/ODIM-Project/ODIM/plugin-redfish/config"
 	"github.com/ODIM-Project/ODIM/plugin-redfish/rfpresponse"
 	iris "github.com/kataras/iris/v12"
 	"github.com/kataras/iris/v12/httptest"
+	"io/ioutil"
 	"net/http"
 	"testing"
 )
 
-func mockUpdateTrigger(username, password, url string, w http.ResponseWriter) {
-	w.WriteHeader(http.StatusOK)
+func mockUpdateTriggerHandler(username, password, url string, w http.ResponseWriter) {
+	resp, err := mockChangeBiosSettings(username, url)
+	if err != nil && resp == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(resp.StatusCode)
+}
+
+func mockUpdateTrigger(username, url string) (*http.Response, error) {
+	if url == "/ODIM/v1/TelemetryService/Triggers/sample" && username == "admin" {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       ioutil.NopCloser(bytes.NewBufferString("Success")),
+		}, nil
+	}
+	return nil, fmt.Errorf("Error")
 }
 
 func TestUpdateTrigger(t *testing.T) {
@@ -34,14 +51,14 @@ func TestUpdateTrigger(t *testing.T) {
 
 	deviceHost := "localhost"
 	devicePort := "1234"
-	ts := startTestServer(mockUpdateTrigger)
+	ts := startTestServer(mockUpdateTriggerHandler)
 	// Start the server.
 	ts.StartTLS()
 	defer ts.Close()
 	mockApp := iris.New()
 	redfishRoutes := mockApp.Party("/ODIM/v1")
 
-	redfishRoutes.Post("/TelemetryService/Triggers/sample", SimpleUpdate)
+	redfishRoutes.Patch("/TelemetryService/Triggers/{id}", UpdateTrigger)
 	rfpresponse.PluginToken = "token"
 	test := httptest.New(t, mockApp)
 	attributes := map[string]interface{}{"EventTriggers": []string{"Alert"}}
@@ -52,5 +69,5 @@ func TestUpdateTrigger(t *testing.T) {
 		"Password":       []byte("P@$$w0rd"),
 		"PostBody":       attributeByte,
 	}
-	test.POST("/ODIM/v1/TelemetryService/Triggers/sample").WithJSON(requestBody).Expect().Status(http.StatusOK)
+	test.PATCH("/ODIM/v1/TelemetryService/Triggers/sample").WithJSON(requestBody).Expect().Status(http.StatusOK)
 }

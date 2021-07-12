@@ -419,8 +419,6 @@ func (e *ExternalInterface) UpdateTrigger(taskID string, sessionUserName string,
 		log.Error(errMsg)
 		return common.GeneralError(http.StatusInternalServerError, response.InternalError, errMsg, nil, nil)
 	}
-	log.Info("Count of plugin list")
-	log.Info(len(pluginList))
 	targetList := formTargetList(pluginList)
 	partialResultFlag := false
 	subTaskChannel := make(chan int32, len(targetList))
