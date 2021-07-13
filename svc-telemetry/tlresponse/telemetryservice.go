@@ -30,15 +30,15 @@ type Status struct {
 // TelemetryService defines the service properties of update service
 type TelemetryService struct {
 	response.Response
-	Status                       Status     `json:"Status"`
-	ServiceEnabled               bool       `json:"ServiceEnabled"`
-	SupportedCollectionFunctions []string   `json:"SupportedCollectionFunctions"`
-	MinCollectionInterval        string     `json:"MinCollectionInterval"`
-	MetricDefinitions            *dmtf.Link `json:"MetricDefinitions"`
-	MetricReportDefinitions      *dmtf.Link `json:"MetricReportDefinitions"`
-	MetricReports                *dmtf.Link `json:"MetricReports"`
-	Triggers                     *dmtf.Link `json:"Triggers"`
-	OEM                          *OEM       `json:"Oem,omitempty"`
+	Status                       Status    `json:"Status"`
+	ServiceEnabled               bool      `json:"ServiceEnabled"`
+	SupportedCollectionFunctions []string  `json:"SupportedCollectionFunctions"`
+	MinCollectionInterval        string    `json:"MinCollectionInterval"`
+	MetricDefinitions            dmtf.Link `json:"MetricDefinitions"`
+	MetricReportDefinitions      dmtf.Link `json:"MetricReportDefinitions"`
+	MetricReports                dmtf.Link `json:"MetricReports"`
+	Triggers                     dmtf.Link `json:"Triggers"`
+	OEM                          OEM       `json:"Oem,omitempty"`
 }
 
 // OEM defines the ACME defined properties under the service

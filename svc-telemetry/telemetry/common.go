@@ -15,11 +15,16 @@
 package telemetry
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
+	"runtime"
+	"time"
 
 	"github.com/ODIM-Project/ODIM/lib-rest-client/pmbhandle"
 	"github.com/ODIM-Project/ODIM/lib-utilities/common"
 	"github.com/ODIM-Project/ODIM/lib-utilities/errors"
+	taskproto "github.com/ODIM-Project/ODIM/lib-utilities/proto/task"
 	"github.com/ODIM-Project/ODIM/lib-utilities/response"
 	"github.com/ODIM-Project/ODIM/lib-utilities/services"
 	"github.com/ODIM-Project/ODIM/svc-telemetry/tcommon"
@@ -40,9 +45,12 @@ type External struct {
 	GetPluginData      func(string) (tmodel.Plugin, *errors.Error)
 	ContactPlugin      func(tcommon.PluginContactRequest, string) ([]byte, string, tcommon.ResponseStatus, error)
 	GetTarget          func(string) (*tmodel.Target, *errors.Error)
+	CreateTask         func(string) (string, error)
+	CreateChildTask    func(string, string) (string, error)
 	GetSessionUserName func(string) (string, error)
 	GenericSave        func([]byte, string, string) error
 	GetPluginStatus    func(tmodel.Plugin) bool
+	UpdateTask         func(common.TaskData) error
 }
 
 type responseStatus struct {
@@ -70,10 +78,51 @@ func GetExternalInterface() *ExternalInterface {
 			GetSessionUserName: services.GetSessionUserName,
 			GenericSave:        tmodel.GenericSave,
 			GetPluginStatus:    tcommon.GetPluginStatus,
+			CreateTask:         services.CreateTask,
+			UpdateTask:         TaskData,
+			CreateChildTask:    services.CreateChildTask,
 		},
 		DB: DB{
 			GetAllKeysFromTable: tmodel.GetAllKeysFromTable,
 			GetResource:         tmodel.GetResource,
 		},
 	}
+}
+
+func fillTaskData(taskID, targetURI, request string, resp response.RPC, taskState string, taskStatus string, percentComplete int32, httpMethod string) common.TaskData {
+	return common.TaskData{
+		TaskID:          taskID,
+		TargetURI:       targetURI,
+		TaskRequest:     request,
+		Response:        resp,
+		TaskState:       taskState,
+		TaskStatus:      taskStatus,
+		PercentComplete: percentComplete,
+		HTTPMethod:      httpMethod,
+	}
+}
+
+// TaskData update the task with the given data
+func TaskData(taskData common.TaskData) error {
+	respBody, _ := json.Marshal(taskData.Response.Body)
+	payLoad := &taskproto.Payload{
+		HTTPHeaders:   taskData.Response.Header,
+		HTTPOperation: taskData.HTTPMethod,
+		JSONBody:      taskData.TaskRequest,
+		StatusCode:    taskData.Response.StatusCode,
+		TargetURI:     taskData.TargetURI,
+		ResponseBody:  respBody,
+	}
+
+	err := services.UpdateTask(taskData.TaskID, taskData.TaskState, taskData.TaskStatus, taskData.PercentComplete, payLoad, time.Now())
+	if err != nil && (err.Error() == common.Cancelling) {
+		// We cant do anything here as the task has done it work completely, we cant reverse it.
+		//Unless if we can do opposite/reverse action for delete server which is add server.
+		services.UpdateTask(taskData.TaskID, common.Cancelled, taskData.TaskStatus, taskData.PercentComplete, payLoad, time.Now())
+		if taskData.PercentComplete == 0 {
+			return fmt.Errorf("error while starting the task: %v", err)
+		}
+		runtime.Goexit()
+	}
+	return nil
 }

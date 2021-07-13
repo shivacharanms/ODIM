@@ -22,6 +22,8 @@ import (
 	"encoding/json"
 	log "github.com/sirupsen/logrus"
 	"net/http"
+	"runtime"
+	"strings"
 
 	dmtf "github.com/ODIM-Project/ODIM/lib-dmtf/model"
 	"github.com/ODIM-Project/ODIM/lib-utilities/common"
@@ -31,6 +33,7 @@ import (
 	"github.com/ODIM-Project/ODIM/lib-utilities/response"
 	"github.com/ODIM-Project/ODIM/svc-telemetry/tcommon"
 	tlresp "github.com/ODIM-Project/ODIM/svc-telemetry/tlresponse"
+	"github.com/ODIM-Project/ODIM/svc-telemetry/tmodel"
 )
 
 // GetTelemetryService defines the functionality for knowing whether
@@ -62,11 +65,11 @@ func (e *ExternalInterface) GetTelemetryService() response.RPC {
 	resp.StatusMessage = response.Success
 
 	resp.Header = map[string]string{
-		"Allow":         "GET",
-		"Cache-Control": "no-cache",
-		"Connection":    "Keep-alive",
-		"Content-type":  "application/json; charset=utf-8",
-		"Link": "	</redfish/v1/SchemaStore/en/TelemetryService.json>; rel=describedby",
+		"Allow":             "GET",
+		"Cache-Control":     "no-cache",
+		"Connection":        "Keep-alive",
+		"Content-type":      "application/json; charset=utf-8",
+		"Link":              "</redfish/v1/SchemaStore/en/TelemetryService.json>; rel=describedby",
 		"Transfer-Encoding": "chunked",
 		"X-Frame-Options":   "sameorigin",
 	}
@@ -83,16 +86,16 @@ func (e *ExternalInterface) GetTelemetryService() response.RPC {
 			HealthRollup: "OK",
 		},
 		ServiceEnabled: isServiceEnabled,
-		MetricDefinitions: &dmtf.Link{
+		MetricDefinitions: dmtf.Link{
 			Oid: "/redfish/v1/TelemetryService/MetricDefinitions",
 		},
-		MetricReportDefinitions: &dmtf.Link{
+		MetricReportDefinitions: dmtf.Link{
 			Oid: "/redfish/v1/TelemetryService/MetricReportDefinitions",
 		},
-		MetricReports: &dmtf.Link{
+		MetricReports: dmtf.Link{
 			Oid: "/redfish/v1/TelemetryService/MetricReports",
 		},
-		Triggers: &dmtf.Link{
+		Triggers: dmtf.Link{
 			Oid: "/redfish/v1/TelemetryService/Triggers",
 		},
 	}
@@ -373,17 +376,239 @@ func (e *ExternalInterface) GetTrigger(req *teleproto.TelemetryRequest) response
 }
 
 // UpdateTrigger ...
-func (e *ExternalInterface) UpdateTrigger(req *teleproto.TelemetryRequest) response.RPC {
+func (e *ExternalInterface) UpdateTrigger(taskID string, sessionUserName string, req *teleproto.TelemetryRequest) response.RPC {
 	var resp response.RPC
+	var percentComplete int32
+	serverURI := req.URL
+	taskInfo := &common.TaskUpdateInfo{TaskID: taskID, TargetURI: serverURI, UpdateTask: e.External.UpdateTask, TaskRequest: string(req.RequestBody)}
+
+	//empty request check
+	if isEmptyRequest(req.RequestBody) {
+		errMsg := "empty request can not be processed"
+		log.Error(errMsg)
+		return common.GeneralError(http.StatusBadRequest, response.PropertyMissing, errMsg, []interface{}{"request body"}, nil)
+	}
+	// parsing the reuqest body
+	var trigger dmtf.Triggers
+	err := json.Unmarshal(req.RequestBody, &trigger)
+	if err != nil {
+		errMsg := "unable to parse the request" + err.Error()
+		log.Error(errMsg)
+		return common.GeneralError(http.StatusBadRequest, response.InternalError, errMsg, nil, nil)
+	}
+	// Validating the request JSON properties for case sensitive
+	invalidProperties, err := common.RequestParamsCaseValidator(req.RequestBody, trigger)
+	if err != nil {
+		errMsg := "Request parameters validaton failed: " + err.Error()
+		log.Error(errMsg)
+		return common.GeneralError(http.StatusInternalServerError, response.InternalError, errMsg, nil, nil)
+	} else if invalidProperties != "" {
+		errorMessage := "One or more properties given in the request body are not valid, ensure properties are listed in uppercamelcase "
+		log.Error(errorMessage)
+		resp := common.GeneralError(http.StatusBadRequest, response.PropertyUnknown, errorMessage, []interface{}{invalidProperties}, nil)
+		return resp
+	}
+
+	pluginList, err := tmodel.GetAllKeysFromTable("Plugin", common.OnDisk)
+	if err != nil {
+		errMsg := "Request parameters validaton failed: " + err.Error()
+		log.Error(errMsg)
+		return common.GeneralError(http.StatusInternalServerError, response.InternalError, errMsg, nil, nil)
+	}
+	targetList := formTargetList(pluginList)
+	partialResultFlag := false
+	subTaskChannel := make(chan int32, len(targetList))
+	for _, target := range targetList {
+		marshalBody, err := json.Marshal(trigger)
+		if err != nil {
+			errMsg := "Unable to parse the trigger update request" + err.Error()
+			log.Warn(errMsg)
+			return common.GeneralError(http.StatusBadRequest, response.InternalError, errMsg, nil, taskInfo)
+		}
+		triggerRequestBody := string(marshalBody)
+		updateURL := req.URL
+		go e.sendRequest(updateURL, taskID, target, triggerRequestBody, subTaskChannel, sessionUserName)
+	}
+	var successCount int
+	var notFoundCount int
+	var internalErrorCount int
+	var badRequestCount int
+	for i := 0; i < len(targetList); i++ {
+		select {
+		case statusCode := <-subTaskChannel:
+			switch statusCode {
+			case http.StatusOK:
+				successCount++
+			case http.StatusNotFound:
+				notFoundCount++
+			case http.StatusBadRequest:
+				badRequestCount++
+			default:
+				internalErrorCount++
+			}
+		}
+	}
+	var rpcResponse response.RPC
+	errMsg := "One or more of the trigger update requests failed. for more information please check SubTasks in URI: /redfish/v1/TaskService/Tasks/" + taskID
+	switch {
+	case successCount > 0 && badRequestCount == 0:
+		resp.StatusCode = http.StatusOK
+	case badRequestCount > 0:
+		resp.StatusCode = http.StatusBadRequest
+		rpcResponse = common.GeneralError(http.StatusBadRequest, response.PropertyUnknown, errMsg, []interface{}{"Triggers"}, taskInfo)
+	case successCount == 0 && notFoundCount > 0:
+		resp.StatusCode = http.StatusNotFound
+		rpcResponse = common.GeneralError(http.StatusNotFound, response.ResourceNotFound, errMsg, []interface{}{"option", "Triggers"}, taskInfo)
+	default:
+		resp.StatusCode = http.StatusInternalServerError
+		rpcResponse = common.GeneralError(http.StatusInternalServerError, response.InternalError, errMsg, nil, taskInfo)
+	}
+
+	for i := 0; i < len(targetList); i++ {
+		percentComplete := int32(((i + 1) / len(targetList)) * 100)
+		var task = fillTaskData(taskID, serverURI, string(req.RequestBody), resp, common.Running, common.OK, percentComplete, http.MethodPatch)
+		err := e.External.UpdateTask(task)
+		if err != nil && err.Error() == common.Cancelling {
+			task = fillTaskData(taskID, serverURI, string(req.RequestBody), resp, common.Cancelled, common.OK, percentComplete, http.MethodPatch)
+			e.External.UpdateTask(task)
+			runtime.Goexit()
+		}
+	}
+	taskStatus := common.OK
+	if partialResultFlag {
+		taskStatus = common.Warning
+	}
+	percentComplete = 100
+	if resp.StatusCode != http.StatusOK {
+		log.Warn(errMsg)
+		return rpcResponse
+	}
+
 	resp.Header = map[string]string{
-		"Allow":             `"GET"`,
 		"Cache-Control":     "no-cache",
 		"Connection":        "keep-alive",
 		"Content-type":      "application/json; charset=utf-8",
 		"Transfer-Encoding": "chunked",
 		"OData-Version":     "4.0",
 	}
+	log.Info("All Trigger updates requests successfully completed. for more information please check SubTasks in URI: /redfish/v1/TaskService/Tasks/" + taskID)
+	resp.StatusMessage = response.Success
+	resp.StatusCode = http.StatusOK
+	args := response.Args{
+		Code:    resp.StatusMessage,
+		Message: "Request completed successfully",
+	}
+	resp.Body = args.CreateGenericErrorResponse()
 
-	// Todo: code for update operation
+	var task = fillTaskData(taskID, serverURI, string(req.RequestBody), resp, common.Completed, taskStatus, percentComplete, http.MethodPatch)
+	err = e.External.UpdateTask(task)
+	if err != nil && err.Error() == common.Cancelling {
+		task = fillTaskData(taskID, serverURI, string(req.RequestBody), resp, common.Cancelled, common.Critical, percentComplete, http.MethodPatch)
+		e.External.UpdateTask(task)
+		runtime.Goexit()
+	}
 	return resp
+}
+
+func (e *ExternalInterface) sendRequest(serverURI, taskID string, plugin tmodel.Plugin, updateRequestBody string, subTaskChannel chan<- int32, sessionUserName string) {
+	var resp response.RPC
+	subTaskURI, err := e.External.CreateChildTask(sessionUserName, taskID)
+	if err != nil {
+		subTaskChannel <- http.StatusInternalServerError
+		log.Warn("Unable to create sub task")
+		return
+	}
+	var subTaskID string
+	strArray := strings.Split(subTaskURI, "/")
+	if strings.HasSuffix(subTaskURI, "/") {
+		subTaskID = strArray[len(strArray)-2]
+	} else {
+		subTaskID = strArray[len(strArray)-1]
+	}
+	taskInfo := &common.TaskUpdateInfo{TaskID: subTaskID, TargetURI: serverURI, UpdateTask: e.External.UpdateTask, TaskRequest: updateRequestBody}
+
+	var percentComplete int32
+	var contactRequest tcommon.PluginContactRequest
+	contactRequest.ContactClient = e.External.ContactClient
+	contactRequest.Plugin = plugin
+
+	if strings.EqualFold(plugin.PreferredAuthType, "XAuthToken") {
+		var err error
+		contactRequest.HTTPMethodType = http.MethodPatch
+		contactRequest.DeviceInfo = map[string]interface{}{
+			"UserName": plugin.Username,
+			"Password": string(plugin.Password),
+		}
+		contactRequest.OID = "/ODIM/v1/Sessions"
+		_, token, getResponse, err := e.External.ContactPlugin(contactRequest, "error while creating session with the plugin: ")
+
+		if err != nil {
+			subTaskChannel <- getResponse.StatusCode
+			errMsg := err.Error()
+			log.Warn(errMsg)
+			common.GeneralError(getResponse.StatusCode, getResponse.StatusMessage, errMsg, getResponse.MsgArgs, taskInfo)
+			return
+		}
+		contactRequest.Token = token
+	} else {
+		contactRequest.BasicAuth = map[string]string{
+			"UserName": plugin.Username,
+			"Password": string(plugin.Password),
+		}
+
+	}
+	var target tmodel.Target
+	target.PostBody = []byte(updateRequestBody)
+	contactRequest.DeviceInfo = target
+	contactRequest.OID = serverURI
+	contactRequest.HTTPMethodType = http.MethodPatch
+	_, _, getResponse, err := e.External.ContactPlugin(contactRequest, "error while performing trigger update action: ")
+	if err != nil {
+		subTaskChannel <- getResponse.StatusCode
+		errMsg := err.Error()
+		log.Warn(errMsg)
+		common.GeneralError(getResponse.StatusCode, getResponse.StatusMessage, errMsg, getResponse.MsgArgs, taskInfo)
+		return
+	}
+	resp.Header = map[string]string{
+		"Cache-Control":     "no-cache",
+		"Connection":        "keep-alive",
+		"Content-type":      "application/json; charset=utf-8",
+		"Transfer-Encoding": "chunked",
+		"OData-Version":     "4.0",
+	}
+	resp.StatusCode = http.StatusOK
+	percentComplete = 100
+	subTaskChannel <- int32(getResponse.StatusCode)
+	var task = fillTaskData(subTaskID, serverURI, updateRequestBody, resp, common.Completed, common.OK, percentComplete, http.MethodPatch)
+	err = e.External.UpdateTask(task)
+	if err != nil && err.Error() == common.Cancelling {
+		var task = fillTaskData(subTaskID, serverURI, updateRequestBody, resp, common.Cancelled, common.Critical, percentComplete, http.MethodPatch)
+		e.External.UpdateTask(task)
+	}
+	return
+}
+
+func isEmptyRequest(requestBody []byte) bool {
+	var updateRequest map[string]interface{}
+	json.Unmarshal(requestBody, &updateRequest)
+	if len(updateRequest) <= 0 {
+		return true
+	}
+	return false
+}
+
+func formTargetList(keys []string) []tmodel.Plugin {
+	var plugins []tmodel.Plugin
+	for _, key := range keys {
+		plugin, err := tmodel.GetPluginData(key)
+		if err != nil {
+			log.Error("failed to get details of " + key + " plugin: " + err.Error())
+			continue
+		}
+		if plugin.PluginType == "Compute" {
+			plugins = append(plugins, plugin)
+		}
+	}
+	return plugins
 }

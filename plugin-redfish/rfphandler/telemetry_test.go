@@ -11,7 +11,6 @@
 //WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 //License for the specific language governing permissions and limitations
 // under the License.
-
 // Packahe rfphandler ...
 package rfphandler
 
@@ -20,33 +19,40 @@ import (
 	"fmt"
 	"github.com/ODIM-Project/ODIM/plugin-redfish/config"
 	"github.com/ODIM-Project/ODIM/plugin-redfish/rfpresponse"
+	"github.com/ODIM-Project/ODIM/plugin-redfish/rfpmodel"
 	iris "github.com/kataras/iris/v12"
 	"github.com/kataras/iris/v12/httptest"
 	"net/http"
 	"testing"
 )
 
-func mockSimpleUpdate(username, password, url string, w http.ResponseWriter) {
-	w.WriteHeader(http.StatusOK)
+func mockDeviceUpdate(device rfpmodel.Device, uri string)*http.Response{
+	var response http.Response
+	response.StatusCode = http.StatusOK
+	return &response
 }
 
-func TestSimpleUpdate(t *testing.T) {
+func TestUpdateTrigger(t *testing.T) {
 	config.SetUpMockConfig(t)
 
 	deviceHost := "localhost"
 	devicePort := "1234"
-	ts := startTestServer(mockSimpleUpdate)
-	// Start the server.
-	ts.StartTLS()
-	defer ts.Close()
+	e := ExternalInterface{
+		TokenValidation: tokenValidationMock,
+		SendRequestToDevice:   mockDeviceUpdate,
+	}
+	rfpmodel.DeviceInventory.Device["0e343dc6-f5f3-425a-9503-4a3c799579c8"] = rfpmodel.DeviceData{
+		Address:  "172.16.1.205",
+		UserName: "admin",
+		Password: []byte("Admin123"),
+	}
 	mockApp := iris.New()
 	redfishRoutes := mockApp.Party("/ODIM/v1")
 
-	redfishRoutes.Post("/UpdateService/Actions.SimpleUpdate", SimpleUpdate)
+	redfishRoutes.Patch("/TelemetryService/Triggers/{id}", e.UpdateTrigger)
 	rfpresponse.PluginToken = "token"
 	test := httptest.New(t, mockApp)
-	attributes := map[string]interface{}{"ImageUri": "abc",
-		"Targets": []string{"/ODIM/v1/Systems/uuid:1"}}
+	attributes := map[string]interface{}{"EventTriggers": []string{"Alert"}}
 	attributeByte, _ := json.Marshal(attributes)
 	requestBody := map[string]interface{}{
 		"ManagerAddress": fmt.Sprintf("%s:%s", deviceHost, devicePort),
@@ -54,28 +60,5 @@ func TestSimpleUpdate(t *testing.T) {
 		"Password":       []byte("P@$$w0rd"),
 		"PostBody":       attributeByte,
 	}
-	test.POST("/ODIM/v1/UpdateService/Actions.SimpleUpdate").WithJSON(requestBody).Expect().Status(http.StatusOK)
-}
-
-func TestStartUpdate(t *testing.T) {
-	config.SetUpMockConfig(t)
-
-	deviceHost := "localhost"
-	devicePort := "1234"
-	ts := startTestServer(mockSimpleUpdate)
-	// Start the server.
-	ts.StartTLS()
-	defer ts.Close()
-	mockApp := iris.New()
-	redfishRoutes := mockApp.Party("/ODIM/v1")
-
-	redfishRoutes.Post("/UpdateService/Actions.StartUpdate", StartUpdate)
-	rfpresponse.PluginToken = "token"
-	test := httptest.New(t, mockApp)
-	requestBody := map[string]interface{}{
-		"ManagerAddress": fmt.Sprintf("%s:%s", deviceHost, devicePort),
-		"UserName":       "admin",
-		"Password":       []byte("P@$$w0rd"),
-	}
-	test.POST("/ODIM/v1/UpdateService/Actions.StartUpdate").WithJSON(requestBody).Expect().Status(http.StatusOK)
+	test.PATCH("/ODIM/v1/TelemetryService/Triggers/sample").WithJSON(requestBody).Expect().Status(http.StatusOK)
 }

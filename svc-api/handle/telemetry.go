@@ -303,8 +303,19 @@ func (a *TelemetryRPCs) GetTrigger(ctx iris.Context) {
 
 // UpdateTrigger is the handler for getting TelemetryService details
 func (a *TelemetryRPCs) UpdateTrigger(ctx iris.Context) {
+	request, err := ctx.GetBody()
+	if err != nil {
+		errorMessage := "error while trying to get JSON body from the account update request body: " + err.Error()
+		log.Error(errorMessage)
+		response := common.GeneralError(http.StatusBadRequest, response.MalformedJSON, errorMessage, nil, nil)
+		ctx.StatusCode(http.StatusBadRequest) // TODO: add error headers
+		ctx.JSON(&response.Body)
+		return
+	}
 	req := telemetryproto.TelemetryRequest{
 		SessionToken: ctx.Request().Header.Get("X-Auth-Token"),
+		URL:          ctx.Request().RequestURI,
+		RequestBody:  request,
 	}
 	if req.SessionToken == "" {
 		errorMessage := "error: no X-Auth-Token found in request header"

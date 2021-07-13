@@ -49,6 +49,7 @@ type PluginContactRequest struct {
 type ResponseStatus struct {
 	StatusCode    int32
 	StatusMessage string
+	MsgArgs       []interface{}
 }
 
 //ResourceInfoRequest  hold the request of getting  Resource

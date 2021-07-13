@@ -42,6 +42,29 @@ func testTelemetryService(req teleproto.TelemetryRequest) (*teleproto.TelemetryR
 	return response, nil
 }
 
+func mockUpdateTrigger(req teleproto.TelemetryRequest) (*teleproto.TelemetryResponse, error) {
+	var response = &teleproto.TelemetryResponse{}
+	if req.SessionToken == "" {
+		response = &teleproto.TelemetryResponse{
+			StatusCode:    401,
+			StatusMessage: "Unauthorized",
+			Body:          []byte(`{"Response":"Unauthorized"}`),
+		}
+	} else if req.SessionToken == "InvalidToken" {
+		response = &teleproto.TelemetryResponse{
+			StatusCode:    401,
+			StatusMessage: "Unauthorized",
+			Body:          []byte(`{"Response":"Unauthorized"}`),
+		}
+	}
+	response = &teleproto.TelemetryResponse{
+		StatusCode:    200,
+		StatusMessage: "Success",
+		Body:          []byte(`{"Response":"Success"}`),
+	}
+	return response, nil
+}
+
 func TestGetTelemetryService(t *testing.T) {
 	var a TelemetryRPCs
 	a.GetTelemetryServiceRPC = testTelemetryService
@@ -206,18 +229,15 @@ func TestGetTrigger(t *testing.T) {
 
 func TestUpdateTrigger(t *testing.T) {
 	var a TelemetryRPCs
-	a.UpdateTriggerRPC = testTelemetryService
+	a.UpdateTriggerRPC = mockUpdateTrigger
 	testApp := iris.New()
 	redfishRoutes := testApp.Party("/redfish/v1/TelemetryService")
 	redfishRoutes.Patch("/Triggers/{id}", a.UpdateTrigger)
 	test := httptest.New(t, testApp)
 	test.PATCH(
 		"/redfish/v1/TelemetryService/Triggers/1",
-	).WithHeader("X-Auth-Token", "ValidToken").Expect().Status(http.StatusOK)
+	).WithJSON(map[string]string{"Sample": "Body"}).WithHeader("X-Auth-Token", "ValidToken").Expect().Status(http.StatusOK)
 	test.PATCH(
 		"/redfish/v1/TelemetryService/Triggers/1",
-	).WithHeader("X-Auth-Token", "").Expect().Status(http.StatusUnauthorized)
-	test.PATCH(
-		"/redfish/v1/TelemetryService/Triggers/1",
-	).WithHeader("X-Auth-Token", "token").Expect().Status(http.StatusInternalServerError)
+	).WithJSON(map[string]string{"Sample": "Body"}).WithHeader("X-Auth-Token", "").Expect().Status(http.StatusUnauthorized)
 }

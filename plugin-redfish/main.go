@@ -107,8 +107,9 @@ func routers() *iris.Application {
 		next(w, r)
 	})
 	e := rfphandler.ExternalInterface{
-		TokenValidation: rfphandler.TokenValidation,
-		GetDeviceData:   rfphandler.GetDeviceData,
+		TokenValidation:     rfphandler.TokenValidation,
+		GetDeviceData:       rfphandler.GetDeviceData,
+		SendRequestToDevice: rfphandler.SendRequestToDevice,
 	}
 	pluginRoutes := app.Party("/ODIM/v1")
 	{
@@ -241,6 +242,8 @@ func routers() *iris.Application {
 		telemetry.Get("/MetricReportDefinitions", rfphandler.GetResource)
 		telemetry.Get("/MetricReports", rfphandler.GetResource)
 		telemetry.Get("/Triggers", rfphandler.GetResource)
+		telemetry.Get("/Triggers/{id}", rfphandler.GetResource)
+		telemetry.Patch("/Triggers/{id}", e.UpdateTrigger)
 		telemetry.Get("/MetricReports/{id}", e.GetMetricReport)
 	}
 	pluginRoutes.Get("/Status", rfphandler.GetPluginStatus)

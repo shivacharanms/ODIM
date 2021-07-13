@@ -33,8 +33,9 @@ import (
 
 // ExternalInterface enables the communicunication with the external functions
 type ExternalInterface struct {
-	TokenValidation func(string) bool
-	GetDeviceData   func(string, *rfputilities.RedfishDevice) (int, []byte, map[string]interface{}, error)
+	TokenValidation     func(string) bool
+	GetDeviceData       func(string, *rfputilities.RedfishDevice) (int, []byte, map[string]interface{}, error)
+	SendRequestToDevice func(rfpmodel.Device, string) *http.Response
 }
 
 // GetMetricReport is for to get metric report from southbound resource
