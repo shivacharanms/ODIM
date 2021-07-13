@@ -20,7 +20,6 @@ package telemetry
 // ---------------------------------------------------------------------------------------
 import (
 	"encoding/json"
-	"fmt"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"runtime"
@@ -449,15 +448,20 @@ func (e *ExternalInterface) UpdateTrigger(taskID string, sessionUserName string,
 			}
 		}
 	}
+	var rpcResponse response.RPC
+	errMsg := "One or more of the trigger update requests failed. for more information please check SubTasks in URI: /redfish/v1/TaskService/Tasks/" + taskID
 	switch {
 	case successCount > 0 && badRequestCount == 0:
 		resp.StatusCode = http.StatusOK
 	case badRequestCount > 0:
 		resp.StatusCode = http.StatusBadRequest
+		rpcResponse = common.GeneralError(http.StatusBadRequest, response.PropertyUnknown, errMsg, []interface{}{"Triggers"}, taskInfo)
 	case successCount == 0 && notFoundCount > 0:
 		resp.StatusCode = http.StatusNotFound
+		rpcResponse = common.GeneralError(http.StatusNotFound, response.ResourceNotFound, errMsg, []interface{}{"option", "Triggers"}, taskInfo)
 	default:
 		resp.StatusCode = http.StatusInternalServerError
+		rpcResponse = common.GeneralError(http.StatusInternalServerError, response.InternalError, errMsg, nil, taskInfo)
 	}
 
 	for i := 0; i < len(targetList); i++ {
@@ -476,20 +480,8 @@ func (e *ExternalInterface) UpdateTrigger(taskID string, sessionUserName string,
 	}
 	percentComplete = 100
 	if resp.StatusCode != http.StatusOK {
-		errMsg := "One or more of the trigger update requests failed. for more information please check SubTasks in URI: /redfish/v1/TaskService/Tasks/" + taskID
 		log.Warn(errMsg)
-		switch resp.StatusCode {
-		case http.StatusAccepted:
-			return common.GeneralError(http.StatusAccepted, response.TaskStarted, errMsg, []interface{}{fmt.Sprintf("%v", targetList)}, taskInfo)
-		case http.StatusUnauthorized:
-			return common.GeneralError(http.StatusUnauthorized, response.ResourceAtURIUnauthorized, errMsg, []interface{}{fmt.Sprintf("%v", targetList)}, taskInfo)
-		case http.StatusNotFound:
-			return common.GeneralError(http.StatusNotFound, response.ResourceNotFound, errMsg, []interface{}{"option", "Triggers"}, taskInfo)
-		case http.StatusBadRequest:
-			return common.GeneralError(http.StatusBadRequest, response.PropertyUnknown, errMsg, []interface{}{"Triggers"}, taskInfo)
-		default:
-			return common.GeneralError(http.StatusInternalServerError, response.InternalError, errMsg, nil, taskInfo)
-		}
+		return rpcResponse
 	}
 
 	resp.Header = map[string]string{
