@@ -42,7 +42,7 @@ func testTelemetryService(req teleproto.TelemetryRequest) (*teleproto.TelemetryR
 	return response, nil
 }
 
-func mockUpdateTriger(req teleproto.TelemetryRequest) (*teleproto.TelemetryResponse, error) {
+func mockUpdateTrigger(req teleproto.TelemetryRequest) (*teleproto.TelemetryResponse, error) {
 	var response = &teleproto.TelemetryResponse{}
 	if req.SessionToken == "" {
 		response = &teleproto.TelemetryResponse{
@@ -229,7 +229,7 @@ func TestGetTrigger(t *testing.T) {
 
 func TestUpdateTrigger(t *testing.T) {
 	var a TelemetryRPCs
-	a.UpdateTriggerRPC = mockUpdateTriger
+	a.UpdateTriggerRPC = mockUpdateTrigger
 	testApp := iris.New()
 	redfishRoutes := testApp.Party("/redfish/v1/TelemetryService")
 	redfishRoutes.Patch("/Triggers/{id}", a.UpdateTrigger)

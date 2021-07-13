@@ -430,26 +430,44 @@ func (e *ExternalInterface) UpdateTrigger(taskID string, sessionUserName string,
 		updateURL := req.URL
 		go e.sendRequest(updateURL, taskID, target, triggerRequestBody, subTaskChannel, sessionUserName)
 	}
-	resp.StatusCode = http.StatusOK
+	var successCount int
+	var notFoundCount int
+	var internalErrorCount int
+	var badRequestCount int
 	for i := 0; i < len(targetList); i++ {
 		select {
 		case statusCode := <-subTaskChannel:
-			if statusCode != http.StatusOK {
-				partialResultFlag = true
-				if resp.StatusCode < statusCode {
-					resp.StatusCode = statusCode
-				}
+			switch statusCode {
+			case http.StatusOK:
+				successCount++
+			case http.StatusNotFound:
+				notFoundCount++
+			case http.StatusBadRequest:
+				badRequestCount++
+			default:
+				internalErrorCount++
 			}
-			if i < len(targetList)-1 {
-				percentComplete := int32(((i + 1) / len(targetList)) * 100)
-				var task = fillTaskData(taskID, serverURI, string(req.RequestBody), resp, common.Running, common.OK, percentComplete, http.MethodPatch)
-				err := e.External.UpdateTask(task)
-				if err != nil && err.Error() == common.Cancelling {
-					task = fillTaskData(taskID, serverURI, string(req.RequestBody), resp, common.Cancelled, common.OK, percentComplete, http.MethodPatch)
-					e.External.UpdateTask(task)
-					runtime.Goexit()
-				}
-			}
+		}
+	}
+	switch {
+	case successCount > 0 && badRequestCount == 0:
+		resp.StatusCode = http.StatusOK
+	case badRequestCount > 0:
+		resp.StatusCode = http.StatusBadRequest
+	case successCount == 0 && notFoundCount > 0:
+		resp.StatusCode = http.StatusNotFound
+	default:
+		resp.StatusCode = http.StatusInternalServerError
+	}
+
+	for i := 0; i < len(targetList); i++ {
+		percentComplete := int32(((i + 1) / len(targetList)) * 100)
+		var task = fillTaskData(taskID, serverURI, string(req.RequestBody), resp, common.Running, common.OK, percentComplete, http.MethodPatch)
+		err := e.External.UpdateTask(task)
+		if err != nil && err.Error() == common.Cancelling {
+			task = fillTaskData(taskID, serverURI, string(req.RequestBody), resp, common.Cancelled, common.OK, percentComplete, http.MethodPatch)
+			e.External.UpdateTask(task)
+			runtime.Goexit()
 		}
 	}
 	taskStatus := common.OK
@@ -596,7 +614,9 @@ func formTargetList(keys []string) []tmodel.Plugin {
 			log.Error("failed to get details of " + key + " plugin: " + err.Error())
 			continue
 		}
-		plugins = append(plugins, plugin)
+		if plugin.PluginType == "Compute" {
+			plugins = append(plugins, plugin)
+		}
 	}
 	return plugins
 }

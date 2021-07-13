@@ -15,35 +15,21 @@
 package rfphandler
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/ODIM-Project/ODIM/plugin-redfish/config"
 	"github.com/ODIM-Project/ODIM/plugin-redfish/rfpresponse"
+	"github.com/ODIM-Project/ODIM/plugin-redfish/rfpmodel"
 	iris "github.com/kataras/iris/v12"
 	"github.com/kataras/iris/v12/httptest"
-	"io/ioutil"
 	"net/http"
 	"testing"
 )
 
-func mockUpdateTriggerHandler(username, password, url string, w http.ResponseWriter) {
-	resp, err := mockChangeBiosSettings(username, url)
-	if err != nil && resp == nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(resp.StatusCode)
-}
-
-func mockUpdateTrigger(username, url string) (*http.Response, error) {
-	if url == "/ODIM/v1/TelemetryService/Triggers/sample" && username == "admin" {
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       ioutil.NopCloser(bytes.NewBufferString("Success")),
-		}, nil
-	}
-	return nil, fmt.Errorf("Error")
+func mockDeviceUpdate(device rfpmodel.Device, uri string)*http.Response{
+	var response http.Response
+	response.StatusCode = http.StatusOK
+	return &response
 }
 
 func TestUpdateTrigger(t *testing.T) {
@@ -51,14 +37,19 @@ func TestUpdateTrigger(t *testing.T) {
 
 	deviceHost := "localhost"
 	devicePort := "1234"
-	ts := startTestServer(mockUpdateTriggerHandler)
-	// Start the server.
-	ts.StartTLS()
-	defer ts.Close()
+	e := ExternalInterface{
+		TokenValidation: tokenValidationMock,
+		SendRequestToDevice:   mockDeviceUpdate,
+	}
+	rfpmodel.DeviceInventory.Device["0e343dc6-f5f3-425a-9503-4a3c799579c8"] = rfpmodel.DeviceData{
+		Address:  "172.16.1.205",
+		UserName: "admin",
+		Password: []byte("Admin123"),
+	}
 	mockApp := iris.New()
 	redfishRoutes := mockApp.Party("/ODIM/v1")
 
-	redfishRoutes.Patch("/TelemetryService/Triggers/{id}", UpdateTrigger)
+	redfishRoutes.Patch("/TelemetryService/Triggers/{id}", e.UpdateTrigger)
 	rfpresponse.PluginToken = "token"
 	test := httptest.New(t, mockApp)
 	attributes := map[string]interface{}{"EventTriggers": []string{"Alert"}}

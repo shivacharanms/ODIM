@@ -24,7 +24,7 @@ import (
 )
 
 // UpdateTrigger updates the trigger parameters with read-write enabled
-func UpdateTrigger(ctx iris.Context) {
+func (e *ExternalInterface) UpdateTrigger(ctx iris.Context) {
 	//Get token from Request
 	token := ctx.GetHeader("X-Auth-Token")
 	//Validating the token
@@ -57,13 +57,15 @@ func UpdateTrigger(ctx iris.Context) {
 	var internalErrorCount int
 	for _, device := range devices {
 		device.PostBody = deviceDetails.PostBody
-		response := sendRequestToDevice(device, uri)
+		response := e.SendRequestToDevice(device, uri)
 		switch response.StatusCode {
 		case http.StatusOK:
 			successCount++
 		case http.StatusNotFound:
 			notFoundCount++
 		default:
+			errMsg := "Internal error for device: " + device.Host
+			log.Info(errMsg)
 			internalErrorCount++
 		}
 
@@ -72,9 +74,19 @@ func UpdateTrigger(ctx iris.Context) {
 		ctx.StatusCode(http.StatusOK)
 		return
 	}
+	if successCount == 0 && notFoundCount > 0 {
+		ctx.StatusCode(http.StatusNotFound)
+		return
+	}
+	if successCount == 0 && internalErrorCount > 0 {
+		ctx.StatusCode(http.StatusInternalServerError)
+		return
+	}
+	ctx.StatusCode(http.StatusNotFound)
+	return
 }
 
-func sendRequestToDevice(device rfpmodel.Device, uri string) *http.Response {
+func SendRequestToDevice(device rfpmodel.Device, uri string) *http.Response {
 	var response http.Response
 	redfishClient, err := rfputilities.GetRedfishClient()
 	if err != nil {

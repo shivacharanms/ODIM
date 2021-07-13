@@ -16,7 +16,6 @@
 package handle
 
 import (
-	"encoding/json"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 
@@ -304,20 +303,9 @@ func (a *TelemetryRPCs) GetTrigger(ctx iris.Context) {
 
 // UpdateTrigger is the handler for getting TelemetryService details
 func (a *TelemetryRPCs) UpdateTrigger(ctx iris.Context) {
-	var reqBody interface{}
-
-	err := ctx.ReadJSON(&reqBody)
+	request, err := ctx.GetBody()
 	if err != nil {
 		errorMessage := "error while trying to get JSON body from the account update request body: " + err.Error()
-		log.Error(errorMessage)
-		response := common.GeneralError(http.StatusBadRequest, response.MalformedJSON, errorMessage, nil, nil)
-		ctx.StatusCode(http.StatusBadRequest) // TODO: add error headers
-		ctx.JSON(&response.Body)
-		return
-	}
-	request, err := json.Marshal(reqBody)
-	if err != nil {
-		errorMessage := "error while trying to marshal JSON body from the account update request body: " + err.Error()
 		log.Error(errorMessage)
 		response := common.GeneralError(http.StatusBadRequest, response.MalformedJSON, errorMessage, nil, nil)
 		ctx.StatusCode(http.StatusBadRequest) // TODO: add error headers
